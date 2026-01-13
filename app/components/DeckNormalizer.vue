@@ -7,39 +7,39 @@ import { useClipboard } from '@vueuse/core'
 // State
 // ============================================
 
-// const input = ref('')
-const input = ref(`3 Krark-Clan Shaman
-4 Refurbished Familiar
-4 Myr Enforcer
-1 Gearseeker Serpent
-1 Kenku Artificer
-3 Blood Fountain
-4 Ichor Wellspring
-2 Cryogen Relic
-2 Toxin Analysis
-4 Galvanic Blast
-4 Reckoner's Bargain
-2 Fanatical Offering
-3 Thoughtcast
-1 Makeshift Munitions
-4 Drossforge Bridge
-4 Mistvault Bridge
-3 Silverbluff Bridge
-3 Vault of Whispers
-2 Seat of the Synod
-2 Great Furnace
-1 Island
-1 Swamp
+const input = ref('')
+// const input = ref(`3 Krark-Clan Shaman
+// 4 Refurbished Familiar
+// 4 Myr Enforcer
+// 1 Gearseeker Serpent
+// 1 Kenku Artificer
+// 3 Blood Fountain
+// 4 Ichor Wellspring
+// 2 Cryogen Relic
+// 2 Toxin Analysis
+// 4 Galvanic Blast
+// 4 Reckoner's Bargain
+// 2 Fanatical Offering
+// 3 Thoughtcast
+// 1 Makeshift Munitions
+// 4 Drossforge Bridge
+// 4 Mistvault Bridge
+// 3 Silverbluff Bridge
+// 3 Vault of Whispers
+// 2 Seat of the Synod
+// 2 Great Furnace
+// 1 Island
+// 1 Swamp
 
-Sideboard
-4 Blue Elemental Blast
-3 Red Elemental Blast
-2 Cast into the Fire
-2 Negate
-1 Gorilla Shaman
-1 Extract a Confession
-1 Breath Weapon
-1 Unexpected Fangs`)
+// Sideboard
+// 4 Blue Elemental Blast
+// 3 Red Elemental Blast
+// 2 Cast into the Fire
+// 2 Negate
+// 1 Gorilla Shaman
+// 1 Extract a Confession
+// 1 Breath Weapon
+// 1 Unexpected Fangs`)
 const normalizedOutput = ref('')
 
 const { isLoading, error, fetchAndBuildIndex, normalize, clearError }
@@ -88,7 +88,7 @@ const lineCount = computed(() => input.value.split('\n').filter(l => l.trim()).l
 </script>
 
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950">
+  <div class="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950">
     <div class="container mx-auto px-4 py-8 max-w-7xl">
       <!-- Header -->
       <div class="text-center mb-8">
@@ -100,7 +100,7 @@ const lineCount = computed(() => input.value.split('\n').filter(l => l.trim()).l
             />
           </div>
         </div>
-        <h1 class="text-4xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent mb-2">
+        <h1 class="text-4xl font-bold bg-linear-to-r from-primary to-primary/60 bg-clip-text text-transparent mb-2">
           Pauper Deck Normalizer
         </h1>
         <p class="text-muted text-lg">
@@ -123,6 +123,52 @@ const lineCount = computed(() => input.value.split('\n').filter(l => l.trim()).l
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Left Column: Input -->
         <div class="space-y-4">
+          <!-- Instructions Card -->
+          <UCard>
+            <template #header>
+              <div class="flex items-center gap-2">
+                <UIcon
+                  name="i-lucide-info"
+                  class="size-5 text-primary"
+                />
+                <h3 class="text-sm font-semibold">
+                  Come funziona
+                </h3>
+              </div>
+            </template>
+
+            <ul class="space-y-2 text-sm text-muted">
+              <li class="flex items-start gap-2">
+                <UIcon
+                  name="i-lucide-check"
+                  class="size-4 text-success mt-0.5 shrink-0"
+                />
+                <span>Incolla la lista del mazzo in formato MTGO</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <UIcon
+                  name="i-lucide-check"
+                  class="size-4 text-success mt-0.5 shrink-0"
+                />
+                <span>Usa "Sideboard" su una riga separata per separare le carte del sideboard</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <UIcon
+                  name="i-lucide-check"
+                  class="size-4 text-success mt-0.5 shrink-0"
+                />
+                <span>Main deck ordinato per valore di mana e poi in ordine alfabetico, sideboard per quantità e ordine alfabetico</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <UIcon
+                  name="i-lucide-check"
+                  class="size-4 text-success mt-0.5 shrink-0"
+                />
+                <span>Clicca "Normalizza Mazzo" per recuperare i dati delle carte e formattare</span>
+              </li>
+            </ul>
+          </UCard>
+
           <UCard>
             <template #header>
               <div class="flex items-center justify-between">
@@ -146,19 +192,6 @@ const lineCount = computed(() => input.value.split('\n').filter(l => l.trim()).l
             </template>
 
             <div class="space-y-4">
-              <UTextarea
-                v-model="input"
-                :rows="32"
-                autoresize
-                color="primary"
-                variant="outline"
-                size="lg"
-                autofocus
-                placeholder="Incolla la lista del tuo mazzo qui..."
-
-                class="font-mono w-full"
-              />
-
               <UButton
                 icon="i-lucide-wand-sparkles"
                 size="lg"
@@ -169,53 +202,19 @@ const lineCount = computed(() => input.value.split('\n').filter(l => l.trim()).l
               >
                 {{ isLoading ? 'Normalizzazione in corso...' : 'Normalizza Mazzo' }}
               </UButton>
+
+              <UTextarea
+                v-model="input"
+                autoresize
+                color="primary"
+                variant="outline"
+                size="lg"
+                autofocus
+                placeholder="Incolla la lista del tuo mazzo qui..."
+
+                class="font-mono w-full"
+              />
             </div>
-          </UCard>
-
-          <!-- Instructions Card -->
-          <UCard>
-            <template #header>
-              <div class="flex items-center gap-2">
-                <UIcon
-                  name="i-lucide-info"
-                  class="size-5 text-primary"
-                />
-                <h3 class="text-sm font-semibold">
-                  Come funziona
-                </h3>
-              </div>
-            </template>
-
-            <ul class="space-y-2 text-sm text-muted">
-              <li class="flex items-start gap-2">
-                <UIcon
-                  name="i-lucide-check"
-                  class="size-4 text-success mt-0.5 flex-shrink-0"
-                />
-                <span>Incolla la lista del mazzo in formato MTGO</span>
-              </li>
-              <li class="flex items-start gap-2">
-                <UIcon
-                  name="i-lucide-check"
-                  class="size-4 text-success mt-0.5 flex-shrink-0"
-                />
-                <span>Usa "Sideboard" su una riga separata per separare le carte del sideboard</span>
-              </li>
-              <li class="flex items-start gap-2">
-                <UIcon
-                  name="i-lucide-check"
-                  class="size-4 text-success mt-0.5 flex-shrink-0"
-                />
-                <span>Main deck ordinato per valore di mana e poi in ordine alfabetico, sideboard per quantità e ordine alfabetico</span>
-              </li>
-              <li class="flex items-start gap-2">
-                <UIcon
-                  name="i-lucide-check"
-                  class="size-4 text-success mt-0.5 flex-shrink-0"
-                />
-                <span>Clicca "Normalizza Mazzo" per recuperare i dati delle carte e formattare</span>
-              </li>
-            </ul>
           </UCard>
         </div>
 
@@ -249,7 +248,7 @@ const lineCount = computed(() => input.value.split('\n').filter(l => l.trim()).l
               </div>
             </template>
 
-            <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 overflow-y-auto">
+            <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg overflow-y-auto">
               <pre class="text-sm font-mono whitespace-pre-wrap text-gray-900 dark:text-gray-100">{{ normalizedOutput }}</pre>
             </div>
           </UCard>
@@ -286,9 +285,9 @@ const lineCount = computed(() => input.value.split('\n').filter(l => l.trim()).l
             target="_blank"
             class="text-primary hover:underline"
           >
-            Scryfall API
+            API Scryfall
           </a>
-          · Dati recuperati in tempo reale
+          • Dati recuperati in tempo reale
         </p>
       </div>
     </div>

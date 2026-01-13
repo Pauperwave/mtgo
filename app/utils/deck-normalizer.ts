@@ -53,13 +53,26 @@ export const SECTION_LABEL: Record<Section, string> = {
 }
 
 /* -------------------------------------------------
+ * Normalize card name for matching
+ * -------------------------------------------------
+ * Handles double-faced cards, split cards, and adventure cards
+ */
+function normalizeCardName(name: string): string {
+  // Remove everything after // (split cards, adventures, MDFCs)
+  return name.split('//')[0].trim()
+}
+
+/* -------------------------------------------------
  * Resolve section from Scryfall type_line
  * -------------------------------------------------
  * Priority order matters and reflects Pauper reality
  * Sideboard always wins
  * Creature always wins (covers Adventures and artifact creatures)
  */
-function sectionFromTypeLine(typeLine: string, isSideboard: boolean): Section {
+function sectionFromTypeLine(
+  typeLine: string,
+  isSideboard: boolean
+): Section {
   if (isSideboard) return 'Sideboard'
 
   if (typeLine.includes('Creature')) return 'Creature'
@@ -77,11 +90,26 @@ function sectionFromTypeLine(typeLine: string, isSideboard: boolean): Section {
  * Create index from Scryfall cards
  * -------------------------------------------------
  * Helper to create O(1) lookup map
+ * Handles double-faced cards by indexing both the full name
+ * and the front face name
  */
 export function createScryfallIndex(
   cards: readonly ScryfallCard[]
 ): ReadonlyMap<string, ScryfallCard> {
-  return new Map(cards.map(card => [card.name, card]))
+  const map = new Map<string, ScryfallCard>()
+
+  for (const card of cards) {
+    // Index by full name
+    map.set(card.name, card)
+
+    // Also index by front face name for split/adventure/MDFC cards
+    const frontFace = normalizeCardName(card.name)
+    if (frontFace !== card.name) {
+      map.set(frontFace, card)
+    }
+  }
+
+  return map
 }
 
 /* -------------------------------------------------
@@ -109,7 +137,14 @@ export function normalizeDeckWithIndex(
   scryfallIndex: ReadonlyMap<string, ScryfallCard>
 ): NormalizedCard[] {
   return parsed.map((card) => {
-    const scryfall = scryfallIndex.get(card.name)
+    // Try exact match first
+    let scryfall = scryfallIndex.get(card.name)
+
+    // If not found, try normalized name (front face only)
+    if (!scryfall) {
+      const normalized = normalizeCardName(card.name)
+      scryfall = scryfallIndex.get(normalized)
+    }
 
     if (!scryfall) {
       throw new Error(`Missing Scryfall data for ${card.name}`)
@@ -117,7 +152,10 @@ export function normalizeDeckWithIndex(
 
     return {
       ...card,
-      section: sectionFromTypeLine(scryfall.type_line, card.isSideboard),
+      section: sectionFromTypeLine(
+        scryfall.type_line,
+        card.isSideboard
+      ),
       cmc: scryfall.cmc
     }
   })
@@ -129,10 +167,7 @@ export function normalizeDeckWithIndex(
  * Main deck: by CMC (mana value), then alphabetically
  * Sideboard: by quantity (descending), then alphabetically
  */
-function sortCards(
-  cards: readonly NormalizedCard[],
-  section: Section
-): NormalizedCard[] {
+function sortCards(cards: readonly NormalizedCard[], section: Section): NormalizedCard[] {
   const sorted = [...cards]
 
   if (section === 'Sideboard') {
@@ -163,16 +198,17 @@ function sortCards(
  * Cards are sorted according to section-specific rules
  */
 export function printDeck(cards: readonly NormalizedCard[]): string {
-  return PRINT_ORDER.map((section) => {
-    const group = cards.filter(c => c.section === section)
+  return PRINT_ORDER
+    .map((section) => {
+      const group = cards.filter(c => c.section === section)
 
-    if (!group.length) return ''
+      if (!group.length) return ''
 
-    const sorted = sortCards(group, section)
-    const lines = sorted.map(c => `${c.quantity} ${c.name}`)
+      const sorted = sortCards(group, section)
+      const lines = sorted.map(c => `${c.quantity} ${c.name}`)
 
-    return `${SECTION_LABEL[section]}\n${lines.join('\n')}`
-  })
+      return `${SECTION_LABEL[section]}\n${lines.join('\n')}`
+    })
     .filter(Boolean)
     .join('\n\n')
 }
