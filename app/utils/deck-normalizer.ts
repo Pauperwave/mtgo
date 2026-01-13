@@ -87,7 +87,7 @@ function sectionFromTypeLine(
   if (typeLine.includes('Artifact')) return 'Artifact'
 
   // Fallback for malformed or unexpected data
-  return 'Sorcery'
+  return 'Unknown' as Section
 }
 
 /* -------------------------------------------------
