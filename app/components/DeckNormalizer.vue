@@ -12,8 +12,7 @@ const normalizedOutput = ref('')
 const missingCards = ref<string[]>([])
 const cardSuggestions = ref<CardSuggestion[]>([])
 
-const { isLoading, error, suggestions, fetchAndBuildIndex, normalize, clearError, clearSuggestions }
-  = useDeckNormalizer()
+const { isLoading, error, fetchAndBuildIndex, normalize } = useDeckNormalizer()
 
 // ============================================
 // Normalization (button click)
@@ -633,7 +632,7 @@ const errorLines = computed(() => {
               </div>
             </template>
 
-            <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg overflow-y-auto">
+            <div class="rounded-lg overflow-y-auto">
               <pre class="text-sm font-mono whitespace-pre-wrap text-gray-900 dark:text-gray-100">{{ normalizedOutput }}</pre>
             </div>
           </UCard>
