@@ -227,7 +227,12 @@ function sortCards(cards: readonly NormalizedCard[], section: Section): Normaliz
         return canonicalA.localeCompare(canonicalB)
       }
 
-      // Within the same functional group, original card comes first
+      // Within the same functional group, sort by individual quantity (descending)
+      if (a.quantity !== b.quantity) {
+        return b.quantity - a.quantity
+      }
+
+      // If same quantity, sort alphabetically
       return a.name.localeCompare(b.name)
     })
   } else {
