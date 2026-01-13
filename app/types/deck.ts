@@ -19,11 +19,11 @@ export interface ParsedCard {
 
 export interface NormalizedCard extends ParsedCard {
   section: Section
-  cmc: number // ← Added
+  cmc: number
 }
 
 export interface ScryfallCard {
   name: string
   type_line: string
-  cmc: number // ← Added
+  cmc: number
 }
