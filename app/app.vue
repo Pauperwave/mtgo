@@ -49,7 +49,7 @@ useSeoMeta({
       <NuxtPage />
     </UMain>
 
-    <USeparator icon="i-simple-icons-nuxtdotjs" />
+    <!-- <USeparator icon="i-simple-icons-nuxtdotjs" />
 
     <UFooter>
       <template #left>
@@ -68,6 +68,6 @@ useSeoMeta({
           variant="ghost"
         />
       </template>
-    </UFooter>
+    </UFooter> -->
   </UApp>
 </template>
