@@ -53,12 +53,12 @@ export const SECTION_LABEL: Record<Section, string> = {
 }
 
 /* -------------------------------------------------
- * Normalize card name for matching
+ * Extract front face name
  * -------------------------------------------------
  * Handles double-faced cards, split cards, and adventure cards
+ * "Sagu Wildling // Roost Seek" -> "Sagu Wildling"
  */
-function normalizeCardName(name: string): string {
-  // Remove everything after // (split cards, adventures, MDFCs)
+function getFrontFaceName(name: string): string {
   return name.split('//')[0].trim()
 }
 
@@ -90,8 +90,7 @@ function sectionFromTypeLine(
  * Create index from Scryfall cards
  * -------------------------------------------------
  * Helper to create O(1) lookup map
- * Handles double-faced cards by indexing both the full name
- * and the front face name
+ * Indexes only by front face name
  */
 export function createScryfallIndex(
   cards: readonly ScryfallCard[]
@@ -99,14 +98,8 @@ export function createScryfallIndex(
   const map = new Map<string, ScryfallCard>()
 
   for (const card of cards) {
-    // Index by full name
-    map.set(card.name, card)
-
-    // Also index by front face name for split/adventure/MDFC cards
-    const frontFace = normalizeCardName(card.name)
-    if (frontFace !== card.name) {
-      map.set(frontFace, card)
-    }
+    const frontFace = getFrontFaceName(card.name)
+    map.set(frontFace, card)
   }
 
   return map
@@ -137,14 +130,9 @@ export function normalizeDeckWithIndex(
   scryfallIndex: ReadonlyMap<string, ScryfallCard>
 ): NormalizedCard[] {
   return parsed.map((card) => {
-    // Try exact match first
-    let scryfall = scryfallIndex.get(card.name)
-
-    // If not found, try normalized name (front face only)
-    if (!scryfall) {
-      const normalized = normalizeCardName(card.name)
-      scryfall = scryfallIndex.get(normalized)
-    }
+    // Normalize the card name to front face for lookup
+    const frontFace = getFrontFaceName(card.name)
+    const scryfall = scryfallIndex.get(frontFace)
 
     if (!scryfall) {
       throw new Error(`Missing Scryfall data for ${card.name}`)
