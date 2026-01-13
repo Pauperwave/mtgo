@@ -168,20 +168,66 @@ export function normalizeDeckWithIndex(
 }
 
 /* -------------------------------------------------
+ * Functional reprints map
+ * -------------------------------------------------
+ * Cards that are functionally identical but have different names
+ * Used for sideboard sorting to group them together
+ */
+const FUNCTIONAL_REPRINTS: Record<string, string> = {
+  'Blue Elemental Blast': 'Hydroblast',
+  'Red Elemental Blast': 'Pyroblast'
+}
+
+/**
+ * Get the canonical name for functional reprints
+ * Returns the "main" card name for grouping purposes
+ */
+function getCanonicalName(cardName: string): string {
+  return FUNCTIONAL_REPRINTS[cardName] || cardName
+}
+
+/**
+ * Get the combined quantity for functional reprints
+ */
+function getCombinedQuantity(
+  cards: readonly NormalizedCard[],
+  card: NormalizedCard
+): number {
+  const canonicalName = getCanonicalName(card.name)
+
+  return cards
+    .filter(c => getCanonicalName(c.name) === canonicalName)
+    .reduce((sum, c) => sum + c.quantity, 0)
+}
+
+/* -------------------------------------------------
  * Sort cards within a section
  * -------------------------------------------------
  * Main deck: by CMC (mana value), then alphabetically
- * Sideboard: by quantity (descending), then alphabetically
+ * Sideboard: by combined quantity (for functional reprints), then alphabetically
  */
 function sortCards(cards: readonly NormalizedCard[], section: Section): NormalizedCard[] {
   const sorted = [...cards]
 
   if (section === 'Sideboard') {
-    // Sideboard: by quantity (descending), then alphabetically
+    // Sideboard: by combined quantity (descending), then alphabetically
     sorted.sort((a, b) => {
-      if (a.quantity !== b.quantity) {
-        return b.quantity - a.quantity
+      const qtyA = getCombinedQuantity(cards, a)
+      const qtyB = getCombinedQuantity(cards, b)
+
+      if (qtyA !== qtyB) {
+        return qtyB - qtyA
       }
+
+      // If same combined quantity, sort by canonical name
+      const canonicalA = getCanonicalName(a.name)
+      const canonicalB = getCanonicalName(b.name)
+
+      if (canonicalA !== canonicalB) {
+        return canonicalA.localeCompare(canonicalB)
+      }
+
+      // Within the same functional group, original card comes first
       return a.name.localeCompare(b.name)
     })
   } else {
