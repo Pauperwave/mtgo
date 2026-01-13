@@ -10,38 +10,37 @@ import type { ScryfallCard } from '~/types/deck'
  * Removes the back face of split/adventure/MDFC cards
  */
 function normalizeCardNameForLookup(name: string): string {
-  return name.split('//')[0].trim()
+  const frontFace = name.split('//')[0]
+  return frontFace ? frontFace.trim() : name.trim()
 }
 
 /**
- * Fetch a single card by exact or fuzzy name
+ * Result from fetching card data
+ * Includes both found cards and suggestions for missing ones
+ */
+export interface FetchResult {
+  cards: ScryfallCard[]
+  suggestions: Array<{
+    searchedName: string
+    suggestedCard: ScryfallCard
+  }>
+}
+
+/**
+ * Fetch a single card by fuzzy name
+ * This handles case-insensitive and typo-tolerant matching
  */
 async function fetchSingleCard(cardName: string): Promise<ScryfallCard | null> {
   try {
     const searchName = normalizeCardNameForLookup(cardName)
 
-    // Try exact match first
-    const exactResponse = await fetch(
-      `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(searchName)}`
-    )
-
-    if (exactResponse.ok) {
-      const card = await exactResponse.json()
-      return {
-        name: card.name,
-        type_line: card.type_line,
-        cmc: card.cmc
-      }
-    }
-
-    // Try fuzzy match if exact fails
+    // Use fuzzy match (it handles case-insensitivity and typos)
     const fuzzyResponse = await fetch(
       `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(searchName)}`
     )
 
     if (fuzzyResponse.ok) {
       const card = await fuzzyResponse.json()
-      console.warn(`Fuzzy matched "${cardName}" to "${card.name}"`)
       return {
         name: card.name,
         type_line: card.type_line,
@@ -50,19 +49,26 @@ async function fetchSingleCard(cardName: string): Promise<ScryfallCard | null> {
     }
 
     return null
-  } catch (err) {
+  } catch {
     return null
   }
 }
 
 /**
- * Fetch card data from Scryfall API
- * Automatically handles batching (75 cards per request) and rate limiting
+ * Check if two card names match (case-insensitive)
  */
-export async function fetchScryfallData(cardNames: string[]): Promise<ScryfallCard[]> {
+function cardNamesMatch(name1: string, name2: string): boolean {
+  return name1.toLowerCase() === name2.toLowerCase()
+}
+
+/**
+ * Fetch card data from Scryfall API
+ * Returns both found cards and fuzzy match suggestions for missing cards
+ */
+export async function fetchScryfallData(cardNames: string[]): Promise<FetchResult> {
   const uniqueNames = [...new Set(cardNames)]
   const allCards: ScryfallCard[] = []
-  const notFound: string[] = []
+  const notFoundNames: string[] = []
 
   // Scryfall collection endpoint accepts max 75 cards per request
   const BATCH_SIZE = 75
@@ -89,6 +95,9 @@ export async function fetchScryfallData(cardNames: string[]): Promise<ScryfallCa
 
       const data = await response.json()
 
+      // Track which names from our batch were found
+      const foundInBatch = new Set<string>()
+
       // Add all found cards
       for (const card of data.data) {
         allCards.push({
@@ -96,14 +105,20 @@ export async function fetchScryfallData(cardNames: string[]): Promise<ScryfallCa
           type_line: card.type_line,
           cmc: card.cmc
         })
+
+        // Mark this card as found (case-insensitive)
+        const matchingBatchName = batch.find(batchName =>
+          cardNamesMatch(normalizeCardNameForLookup(batchName), card.name)
+        )
+        if (matchingBatchName) {
+          foundInBatch.add(matchingBatchName.toLowerCase())
+        }
       }
 
-      // Track not found cards
-      if (data.not_found && data.not_found.length > 0) {
-        for (const item of data.not_found) {
-          if (item.name) {
-            notFound.push(item.name)
-          }
+      // Track cards from this batch that weren't found
+      for (const originalName of batch) {
+        if (!foundInBatch.has(originalName.toLowerCase())) {
+          notFoundNames.push(originalName)
         }
       }
 
@@ -119,14 +134,31 @@ export async function fetchScryfallData(cardNames: string[]): Promise<ScryfallCa
   }
 
   // Try to fetch cards that weren't found using fuzzy search
-  if (notFound.length > 0) {
-    const stillNotFound: string[] = []
+  const suggestions: Array<{
+    searchedName: string
+    suggestedCard: ScryfallCard
+  }> = []
 
-    for (const cardName of notFound) {
+  const stillNotFound: string[] = []
+
+  if (notFoundNames.length > 0) {
+    for (const cardName of notFoundNames) {
       const card = await fetchSingleCard(cardName)
 
       if (card) {
-        allCards.push(card)
+        // Check if this is actually a different card (case mismatch or typo)
+        const isDifferentCard = !cardNamesMatch(cardName, card.name)
+
+        if (isDifferentCard) {
+          // Found a fuzzy match - add as suggestion
+          suggestions.push({
+            searchedName: cardName,
+            suggestedCard: card
+          })
+        } else {
+          // Same card, just case mismatch - add directly without suggestion
+          allCards.push(card)
+        }
       } else {
         stillNotFound.push(cardName)
       }
@@ -143,5 +175,8 @@ export async function fetchScryfallData(cardNames: string[]): Promise<ScryfallCa
     }
   }
 
-  return allCards
+  return {
+    cards: allCards,
+    suggestions
+  }
 }

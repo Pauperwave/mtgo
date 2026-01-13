@@ -5,25 +5,43 @@
 
 import type { ParsedCard, ScryfallCard } from '~/types/deck'
 import { createScryfallIndex, normalizeDeckWithIndex, printDeck } from '~/utils/deck-normalizer'
-import { fetchScryfallData } from '~/services/scryfall'
+import { fetchScryfallData, type FetchResult } from '~/services/scryfall'
+
+export interface CardSuggestion {
+  searchedName: string
+  suggestedCard: ScryfallCard
+}
 
 export function useDeckNormalizer() {
   const scryfallIndex = ref<ReadonlyMap<string, ScryfallCard> | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
+  const suggestions = ref<CardSuggestion[]>([])
 
   /**
    * Fetch Scryfall data and build the index
-   * Call this once before using normalize()
+   * Returns suggestions for cards that needed fuzzy matching
    */
-  async function fetchAndBuildIndex(cardNames: string[]) {
+  async function fetchAndBuildIndex(cardNames: string[]): Promise<CardSuggestion[]> {
     isLoading.value = true
     error.value = null
+    suggestions.value = []
 
     try {
-      const cards = await fetchScryfallData(cardNames)
-      scryfallIndex.value = createScryfallIndex(cards)
-      return scryfallIndex.value
+      const result: FetchResult = await fetchScryfallData(cardNames)
+
+      // Store suggestions
+      suggestions.value = result.suggestions
+
+      // Build index with all cards (exact matches + fuzzy matches)
+      const allCards = [
+        ...result.cards,
+        ...result.suggestions.map(s => s.suggestedCard)
+      ]
+
+      scryfallIndex.value = createScryfallIndex(allCards)
+
+      return result.suggestions
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to fetch card data'
       throw err
@@ -52,11 +70,20 @@ export function useDeckNormalizer() {
     error.value = null
   }
 
+  /**
+   * Clear suggestions
+   */
+  function clearSuggestions() {
+    suggestions.value = []
+  }
+
   return {
     isLoading: readonly(isLoading),
     error: readonly(error),
+    suggestions: readonly(suggestions),
     fetchAndBuildIndex,
     normalize,
-    clearError
+    clearError,
+    clearSuggestions
   }
 }
