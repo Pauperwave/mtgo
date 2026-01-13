@@ -8,39 +8,8 @@ import { useClipboard } from '@vueuse/core'
 // ============================================
 
 const input = ref('')
-// const input = ref(`3 Krark-Clan Shaman
-// 4 Refurbished Familiar
-// 4 Myr Enforcer
-// 1 Gearseeker Serpent
-// 1 Kenku Artificer
-// 3 Blood Fountain
-// 4 Ichor Wellspring
-// 2 Cryogen Relic
-// 2 Toxin Analysis
-// 4 Galvanic Blast
-// 4 Reckoner's Bargain
-// 2 Fanatical Offering
-// 3 Thoughtcast
-// 1 Makeshift Munitions
-// 4 Drossforge Bridge
-// 4 Mistvault Bridge
-// 3 Silverbluff Bridge
-// 3 Vault of Whispers
-// 2 Seat of the Synod
-// 2 Great Furnace
-// 1 Island
-// 1 Swamp
-
-// Sideboard
-// 4 Blue Elemental Blast
-// 3 Red Elemental Blast
-// 2 Cast into the Fire
-// 2 Negate
-// 1 Gorilla Shaman
-// 1 Extract a Confession
-// 1 Breath Weapon
-// 1 Unexpected Fangs`)
 const normalizedOutput = ref('')
+const missingCards = ref<string[]>([])
 
 const { isLoading, error, fetchAndBuildIndex, normalize, clearError }
   = useDeckNormalizer()
@@ -54,11 +23,15 @@ async function handleNormalize() {
     return
   }
 
+  // Reset state
+  missingCards.value = []
+  normalizedOutput.value = ''
+
   try {
     const parsed = parseRawDeck(input.value)
 
     if (parsed.length === 0) {
-      throw new Error('No cards found in the input')
+      throw new Error('Nessuna carta trovata nell\'input')
     }
 
     // Fetch Scryfall data and build index
@@ -68,7 +41,13 @@ async function handleNormalize() {
     // Normalize and display
     normalizedOutput.value = normalize(parsed)
   } catch (err) {
-    console.error('Normalization error:', err)
+    console.error('Errore di normalizzazione:', err)
+
+    // Extract missing card names from error message
+    if (err instanceof Error && err.message.includes('Missing Scryfall data for:')) {
+      const cardsString = err.message.replace('Missing Scryfall data for: ', '')
+      missingCards.value = cardsString.split(', ').map(name => name.trim())
+    }
   }
 }
 
@@ -140,31 +119,38 @@ const lineCount = computed(() => input.value.split('\n').filter(l => l.trim()).l
             <ul class="space-y-2 text-sm text-muted">
               <li class="flex items-start gap-2">
                 <UIcon
-                  name="i-lucide-check"
-                  class="size-4 text-success mt-0.5 shrink-0"
+                  name="i-lucide-circle"
+                  class="size-4 text-error mt-0.5 shrink-0"
                 />
                 <span>Incolla la lista del mazzo in formato MTGO</span>
               </li>
               <li class="flex items-start gap-2">
                 <UIcon
-                  name="i-lucide-check"
-                  class="size-4 text-success mt-0.5 shrink-0"
+                  name="i-lucide-circle"
+                  class="size-4 text-error mt-0.5 shrink-0"
                 />
                 <span>Usa "Sideboard" su una riga separata per separare le carte del sideboard</span>
               </li>
               <li class="flex items-start gap-2">
                 <UIcon
-                  name="i-lucide-check"
-                  class="size-4 text-success mt-0.5 shrink-0"
+                  name="i-lucide-circle-dot-dashed"
+                  class="size-4 text-warning mt-0.5 shrink-0"
                 />
-                <span>Main deck ordinato per valore di mana e poi in ordine alfabetico, sideboard per quantità e ordine alfabetico</span>
+                <span>Clicca "Normalizza Mazzo" per recuperare i dati delle carte e formattare</span>
               </li>
               <li class="flex items-start gap-2">
                 <UIcon
-                  name="i-lucide-check"
+                  name="i-lucide-circle-dot"
                   class="size-4 text-success mt-0.5 shrink-0"
                 />
-                <span>Clicca "Normalizza Mazzo" per recuperare i dati delle carte e formattare</span>
+                <span>Main deck ordinato per valore di mana e ordine alfabetico</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <UIcon
+                  name="i-lucide-circle-dot"
+                  class="size-4 text-success mt-0.5 shrink-0"
+                />
+                <span>Sideboard ordinato per quantità e ordine alfabetico</span>
               </li>
             </ul>
           </UCard>
@@ -186,7 +172,7 @@ const lineCount = computed(() => input.value.split('\n').filter(l => l.trim()).l
                   color="neutral"
                   variant="subtle"
                 >
-                  {{ lineCount }} lines
+                  {{ lineCount }} righe
                 </UBadge>
               </div>
             </template>
@@ -211,7 +197,6 @@ const lineCount = computed(() => input.value.split('\n').filter(l => l.trim()).l
                 size="lg"
                 autofocus
                 placeholder="Incolla la lista del tuo mazzo qui..."
-
                 class="font-mono w-full"
               />
             </div>
@@ -220,6 +205,66 @@ const lineCount = computed(() => input.value.split('\n').filter(l => l.trim()).l
 
         <!-- Right Column: Output -->
         <div class="space-y-4">
+          <!-- Missing Cards Warning -->
+          <UCard
+            v-if="missingCards.length > 0"
+            color="warning"
+            class="border-warning/50"
+          >
+            <template #header>
+              <div class="flex items-center gap-2">
+                <UIcon
+                  name="i-lucide-alert-triangle"
+                  class="size-5 text-warning"
+                />
+                <h2 class="text-lg font-semibold">
+                  Carte Non Trovate
+                </h2>
+              </div>
+            </template>
+
+            <div class="space-y-3">
+              <p class="text-sm text-muted">
+                {{ missingCards.length > 1 ? 'Le seguenti carte non sono state trovate' : 'La seguente carta non è stata trovata' }} su Scryfall.
+                Controlla l'ortografia o il nome della carta.
+              </p>
+
+              <div class="bg-warning/5 rounded-lg p-3 border border-warning/20">
+                <ul class="space-y-1">
+                  <li
+                    v-for="cardName in missingCards"
+                    :key="cardName"
+                    class="flex items-center gap-2 text-sm font-mono"
+                  >
+                    <UIcon
+                      name="i-lucide-x-circle"
+                      class="size-4 text-warning shrink-0"
+                    />
+                    <span>{{ cardName }}</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div class="flex items-start gap-2 text-xs text-muted">
+                <UIcon
+                  name="i-lucide-lightbulb"
+                  class="size-4 mt-0.5 shrink-0"
+                />
+                <span>
+                  Prova a cercare la carta su
+                  <a
+                    href="https://scryfall.com"
+                    target="_blank"
+                    class="text-primary hover:underline"
+                  >
+                    Scryfall
+                  </a>
+                  per verificare il nome esatto.
+                </span>
+              </div>
+            </div>
+          </UCard>
+
           <!-- Normalized Output -->
           <UCard
             v-if="normalizedOutput"
@@ -248,14 +293,16 @@ const lineCount = computed(() => input.value.split('\n').filter(l => l.trim()).l
               </div>
             </template>
 
-            <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg overflow-y-auto">
-              <pre class="text-sm font-mono whitespace-pre-wrap text-gray-900 dark:text-gray-100">{{ normalizedOutput }}</pre>
+            <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 overflow-y-auto">
+              <pre
+                class="text-sm font-mono whitespace-pre-wrap text-gray-900 dark:text-gray-100"
+              >{{ normalizedOutput }}</pre>
             </div>
           </UCard>
 
           <!-- Empty State -->
           <UCard
-            v-else
+            v-if="!normalizedOutput && missingCards.length === 0"
             class="border-dashed"
           >
             <div class="flex flex-col items-center justify-center py-16 text-center">

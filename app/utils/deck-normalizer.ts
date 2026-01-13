@@ -124,29 +124,43 @@ export function normalizeDeck(
  * -------------------------------------------------
  * Performance API for repeated use (live preview)
  * Expects caller to manage the index
+ * Collects all missing cards and throws a single error
  */
 export function normalizeDeckWithIndex(
   parsed: readonly ParsedCard[],
   scryfallIndex: ReadonlyMap<string, ScryfallCard>
 ): NormalizedCard[] {
-  return parsed.map((card) => {
+  const missingCards: string[] = []
+  const normalized: NormalizedCard[] = []
+
+  for (const card of parsed) {
     // Normalize the card name to front face for lookup
     const frontFace = getFrontFaceName(card.name)
     const scryfall = scryfallIndex.get(frontFace)
 
     if (!scryfall) {
-      throw new Error(`Missing Scryfall data for ${card.name}`)
+      missingCards.push(card.name)
+      continue
     }
 
-    return {
+    normalized.push({
       ...card,
       section: sectionFromTypeLine(
         scryfall.type_line,
         card.isSideboard
       ),
       cmc: scryfall.cmc
-    }
-  })
+    })
+  }
+
+  // If any cards are missing, throw error with all of them
+  if (missingCards.length > 0) {
+    throw new Error(
+      `Missing Scryfall data for: ${missingCards.join(', ')}`
+    )
+  }
+
+  return normalized
 }
 
 /* -------------------------------------------------
