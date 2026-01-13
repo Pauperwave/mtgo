@@ -83,7 +83,7 @@ const lineCount = computed(() => input.value.split('\n').filter(l => l.trim()).l
           Pauper Deck Normalizer
         </h1>
         <p class="text-muted text-lg">
-          Trasforma la lista del tuo mazzo in formato MTGO
+          Trasforma la lista del tuo mazzo dal formato MTGO
         </p>
       </div>
 
@@ -136,21 +136,28 @@ const lineCount = computed(() => input.value.split('\n').filter(l => l.trim()).l
                   name="i-lucide-circle-dot-dashed"
                   class="size-4 text-warning mt-0.5 shrink-0"
                 />
-                <span>Clicca "Normalizza Mazzo" per recuperare i dati delle carte e formattare</span>
+                <span>Clicca "Normalizza Mazzo" per recuperare i dati delle carte</span>
               </li>
               <li class="flex items-start gap-2">
                 <UIcon
-                  name="i-lucide-circle-dot"
+                  name="i-lucide-arrow-right-circle"
                   class="size-4 text-success mt-0.5 shrink-0"
                 />
                 <span>Main deck ordinato per valore di mana e ordine alfabetico</span>
               </li>
               <li class="flex items-start gap-2">
                 <UIcon
-                  name="i-lucide-circle-dot"
+                  name="i-lucide-arrow-right-circle"
                   class="size-4 text-success mt-0.5 shrink-0"
                 />
                 <span>Sideboard ordinato per quantità e ordine alfabetico</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <UIcon
+                  name="i-lucide-circle-dot"
+                  class="size-4 text-success mt-0.5 shrink-0"
+                />
+                <span>Clicca il tasto copia in alto a destra per copiare la lista normalizzata</span>
               </li>
             </ul>
           </UCard>
@@ -230,17 +237,30 @@ const lineCount = computed(() => input.value.split('\n').filter(l => l.trim()).l
               </p>
 
               <div class="bg-warning/5 rounded-lg p-3 border border-warning/20">
-                <ul class="space-y-1">
+                <ul class="space-y-2">
                   <li
                     v-for="cardName in missingCards"
                     :key="cardName"
-                    class="flex items-center gap-2 text-sm font-mono"
+                    class="flex items-center justify-between gap-3"
                   >
-                    <UIcon
-                      name="i-lucide-x-circle"
-                      class="size-4 text-warning shrink-0"
-                    />
-                    <span>{{ cardName }}</span>
+                    <div class="flex items-center gap-2 min-w-0 flex-1">
+                      <UIcon
+                        name="i-lucide-x-circle"
+                        class="size-4 text-warning shrink-0"
+                      />
+                      <span class="font-mono text-sm truncate">{{ cardName }}</span>
+                    </div>
+                    <UButton
+                      :to="`https://scryfall.com/search?q=${encodeURIComponent(cardName)}`"
+                      target="_blank"
+                      size="xs"
+                      variant="soft"
+                      color="warning"
+                      icon="i-lucide-search"
+                      trailing
+                    >
+                      Cerca
+                    </UButton>
                   </li>
                 </ul>
               </div>
@@ -251,15 +271,7 @@ const lineCount = computed(() => input.value.split('\n').filter(l => l.trim()).l
                   class="size-4 mt-0.5 shrink-0"
                 />
                 <span>
-                  Prova a cercare la carta su
-                  <a
-                    href="https://scryfall.com"
-                    target="_blank"
-                    class="text-primary hover:underline"
-                  >
-                    Scryfall
-                  </a>
-                  per verificare il nome esatto.
+                  Clicca su "Cerca" per trovare la carta su Scryfall e verificare il nome esatto.
                 </span>
               </div>
             </div>
@@ -293,7 +305,7 @@ const lineCount = computed(() => input.value.split('\n').filter(l => l.trim()).l
               </div>
             </template>
 
-            <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 overflow-y-auto">
+            <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg overflow-y-auto">
               <pre
                 class="text-sm font-mono whitespace-pre-wrap text-gray-900 dark:text-gray-100"
               >{{ normalizedOutput }}</pre>
