@@ -22,13 +22,19 @@ export function parseRawDeck(text: string): ParsedCard[] {
 
     // Parse card line: "3 Krark-Clan Shaman"
     const match = trimmedLine.match(/^(\d+)\s+(.+)$/)
-    if (match) {
-      cards.push({
-        quantity: parseInt(match[1]),
-        name: match[2],
-        isSideboard
-      })
-    }
+    if (!match) continue
+
+    const quantityString = match[1]
+    const cardName = match[2]
+
+    // Type guard: ensure both capture groups exist
+    if (!quantityString || !cardName) continue
+
+    cards.push({
+      quantity: parseInt(quantityString, 10),
+      name: cardName,
+      isSideboard
+    })
   }
 
   return cards

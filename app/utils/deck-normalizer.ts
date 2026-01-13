@@ -59,7 +59,11 @@ export const SECTION_LABEL: Record<Section, string> = {
  * "Sagu Wildling // Roost Seek" -> "Sagu Wildling"
  */
 function getFrontFaceName(name: string): string {
-  return name.split('//')[0].trim()
+  const frontFace = name.split('//')[0]
+  if (!frontFace) {
+    return name.trim()
+  }
+  return frontFace.trim()
 }
 
 /* -------------------------------------------------
