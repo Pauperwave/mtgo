@@ -7,12 +7,12 @@ useHead({
     { rel: 'icon', href: '/favicon.ico' }
   ],
   htmlAttrs: {
-    lang: 'en'
+    lang: 'it'
   }
 })
 
-const title = 'Nuxt Starter Template'
-const description = 'A production-ready starter template powered by Nuxt UI. Build beautiful, accessible, and performant applications in minutes, not hours.'
+const title = 'Pauper Deck Normalizer'
+const description = 'A tool to help you normalize your Pauper decks from MTGO format to Blog format.'
 
 useSeoMeta({
   title,
