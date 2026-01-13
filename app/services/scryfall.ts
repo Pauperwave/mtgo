@@ -55,20 +55,15 @@ async function fetchSingleCard(cardName: string): Promise<ScryfallCard | null> {
 }
 
 /**
- * Check if two card names match (case-insensitive)
- */
-function cardNamesMatch(name1: string, name2: string): boolean {
-  return name1.toLowerCase() === name2.toLowerCase()
-}
-
-/**
  * Fetch card data from Scryfall API
  * Returns both found cards and fuzzy match suggestions for missing cards
  */
 export async function fetchScryfallData(cardNames: string[]): Promise<FetchResult> {
   const uniqueNames = [...new Set(cardNames)]
   const allCards: ScryfallCard[] = []
-  const notFoundNames: string[] = []
+
+  // Map to track which original names we've found cards for (exact match from collection)
+  const foundExactMatch = new Set<string>()
 
   // Scryfall collection endpoint accepts max 75 cards per request
   const BATCH_SIZE = 75
@@ -95,9 +90,6 @@ export async function fetchScryfallData(cardNames: string[]): Promise<FetchResul
 
       const data = await response.json()
 
-      // Track which names from our batch were found
-      const foundInBatch = new Set<string>()
-
       // Add all found cards
       for (const card of data.data) {
         allCards.push({
@@ -106,19 +98,12 @@ export async function fetchScryfallData(cardNames: string[]): Promise<FetchResul
           cmc: card.cmc
         })
 
-        // Mark this card as found (case-insensitive)
-        const matchingBatchName = batch.find(batchName =>
-          cardNamesMatch(normalizeCardNameForLookup(batchName), card.name)
-        )
-        if (matchingBatchName) {
-          foundInBatch.add(matchingBatchName.toLowerCase())
-        }
-      }
-
-      // Track cards from this batch that weren't found
-      for (const originalName of batch) {
-        if (!foundInBatch.has(originalName.toLowerCase())) {
-          notFoundNames.push(originalName)
+        // Mark original names as found IF they match exactly (case-sensitive)
+        for (const originalName of batch) {
+          const normalized = normalizeCardNameForLookup(originalName)
+          if (normalized === card.name) {
+            foundExactMatch.add(originalName)
+          }
         }
       }
 
@@ -133,6 +118,14 @@ export async function fetchScryfallData(cardNames: string[]): Promise<FetchResul
     }
   }
 
+  console.log('Found exact matches:', Array.from(foundExactMatch))
+  console.log('Unique names:', uniqueNames)
+
+  // Find cards that weren't found in the batch requests
+  const notFoundNames = uniqueNames.filter(name => !foundExactMatch.has(name))
+
+  console.log('Not found (need fuzzy search):', notFoundNames)
+
   // Try to fetch cards that weren't found using fuzzy search
   const suggestions: Array<{
     searchedName: string
@@ -143,23 +136,25 @@ export async function fetchScryfallData(cardNames: string[]): Promise<FetchResul
 
   if (notFoundNames.length > 0) {
     for (const cardName of notFoundNames) {
+      console.log(`Fuzzy searching for: "${cardName}"`)
       const card = await fetchSingleCard(cardName)
 
       if (card) {
-        // Check if this is actually a different card (case mismatch or typo)
-        const isDifferentCard = !cardNamesMatch(cardName, card.name)
+        console.log(`Found fuzzy match: "${cardName}" -> "${card.name}"`)
 
-        if (isDifferentCard) {
-          // Found a fuzzy match - add as suggestion
+        // Always add as suggestion if the names don't match exactly (character by character)
+        if (cardName !== card.name) {
+          console.log(`Adding as suggestion (names differ)`)
           suggestions.push({
             searchedName: cardName,
             suggestedCard: card
           })
         } else {
-          // Same card, just case mismatch - add directly without suggestion
+          console.log(`Adding directly (same name)`)
           allCards.push(card)
         }
       } else {
+        console.log(`No fuzzy match found for: "${cardName}"`)
         stillNotFound.push(cardName)
       }
 
@@ -174,6 +169,8 @@ export async function fetchScryfallData(cardNames: string[]): Promise<FetchResul
       )
     }
   }
+
+  console.log('Final suggestions:', suggestions)
 
   return {
     cards: allCards,
