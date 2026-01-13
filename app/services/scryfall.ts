@@ -164,8 +164,11 @@ export async function fetchScryfallData(cardNames: string[]): Promise<FetchResul
 
     // If still some cards weren't found, throw error
     if (stillNotFound.length > 0) {
+      const cardLabel = stillNotFound.length > 1 ? 'Le seguenti carte non sono state trovate' : 'La seguente carta non è stata trovata'
+      const cardList = stillNotFound.map(name => `• ${name}`).join('\n')
+
       throw new Error(
-        `Could not find the following card${stillNotFound.length > 1 ? 's' : ''} on Scryfall:\n\n${stillNotFound.map(name => `• ${name}`).join('\n')}\n\nPlease check the spelling or try using the exact card name from Scryfall.`
+        `${cardLabel} su Scryfall:\n\n${cardList}\n\nVerifica l'ortografia o prova a usare il nome esatto della carta da Scryfall.`
       )
     }
   }

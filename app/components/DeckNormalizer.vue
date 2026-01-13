@@ -199,6 +199,19 @@ const completedCount = computed(() => {
 })
 
 const totalCount = 4
+
+const errorMessage = computed(() => {
+  if (!error.value) return ''
+  // Extract the first line (main message)
+  return error.value.split('\n\n')[0]
+})
+
+const errorLines = computed(() => {
+  if (!error.value) return []
+  // Extract bullet points (lines starting with •)
+  const lines = error.value.split('\n')
+  return lines.filter(line => line.trim().startsWith('•')).map(line => line.trim().replace('• ', ''))
+})
 </script>
 
 <template>
@@ -221,17 +234,6 @@ const totalCount = 4
           Trasforma la lista del tuo mazzo in formato MTGO
         </p>
       </div>
-
-      <!-- Error Alert -->
-      <UAlert
-        v-if="error"
-        color="error"
-        icon="i-lucide-alert-circle"
-        :title="error"
-        class="mb-6"
-        :close-button="{ icon: 'i-lucide-x', color: 'error', variant: 'link' }"
-        @close="clearError"
-      />
 
       <!-- Main Content Grid -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -390,6 +392,70 @@ const totalCount = 4
 
         <!-- Right Column: Output -->
         <div class="space-y-4">
+          <!-- Error Alert -->
+          <UCard
+            v-if="error"
+            color="error"
+            class="mb-6 border-error/50"
+          >
+            <template #header>
+              <div class="flex items-center gap-2">
+                <UIcon
+                  name="i-lucide-alert-circle"
+                  class="size-5 text-error"
+                />
+                <h2 class="text-lg font-semibold">
+                  Errore
+                </h2>
+              </div>
+            </template>
+
+            <div class="space-y-3">
+              <p class="text-sm text-muted">
+                {{ errorMessage }}
+              </p>
+
+              <div class="bg-error/5 rounded-lg p-3 border border-error/20">
+                <ul class="space-y-2">
+                  <li
+                    v-for="line in errorLines"
+                    :key="line"
+                    class="flex items-center justify-between gap-3"
+                  >
+                    <div class="flex items-center gap-2 min-w-0 flex-1">
+                      <UIcon
+                        name="i-lucide-x-circle"
+                        class="size-4 text-error shrink-0"
+                      />
+                      <span class="font-mono text-sm">{{ line }}</span>
+                    </div>
+                    <UButton
+                      :to="`https://scryfall.com/search?q=${encodeURIComponent(line)}`"
+                      target="_blank"
+                      size="xs"
+                      variant="soft"
+                      color="error"
+                      icon="i-lucide-search"
+                      trailing
+                    >
+                      Cerca
+                    </UButton>
+                  </li>
+                </ul>
+              </div>
+
+              <div class="flex items-start gap-2 text-xs text-muted">
+                <UIcon
+                  name="i-lucide-lightbulb"
+                  class="size-4 mt-0.5 shrink-0"
+                />
+                <span>
+                  Clicca su "Cerca" per trovare la carta su Scryfall e verificare il nome esatto.
+                </span>
+              </div>
+            </div>
+          </UCard>
+
           <!-- Missing Cards Warning -->
           <UCard
             v-if="missingCards.length > 0"
@@ -468,70 +534,73 @@ const totalCount = 4
                   class="size-5 text-info"
                 />
                 <h2 class="text-lg font-semibold">
-                  Suggerimenti Correzione
+                  Carte Non Riconosciute
                 </h2>
               </div>
             </template>
 
             <div class="space-y-3">
               <p class="text-sm text-muted">
-                {{ cardSuggestions.length > 1 ? 'Sono state trovate' : 'È stata trovata' }} delle corrispondenze simili per {{ cardSuggestions.length > 1 ? 'le seguenti carte' : 'la seguente carta' }}.
+                {{ cardSuggestions.length > 1 ? 'Le seguenti carte non sono state riconosciute' : 'La seguente carta non è stata riconosciuta' }} esattamente, ma {{ cardSuggestions.length > 1 ? 'sono state trovate corrispondenze' : 'è stata trovata una corrispondenza' }} simili.
                 Vuoi applicare {{ cardSuggestions.length > 1 ? 'le correzioni' : 'la correzione' }}?
               </p>
 
-              <div class="space-y-2">
-                <div
-                  v-for="suggestion in cardSuggestions"
-                  :key="suggestion.searchedName"
-                  class="bg-info/5 rounded-lg p-3 border border-info/20"
-                >
-                  <div class="flex items-start justify-between gap-3 mb-2">
-                    <div class="flex-1 min-w-0">
-                      <div class="flex items-center gap-2 mb-1">
+              <div class="bg-info/5 rounded-lg p-3 border border-info/20">
+                <ul class="space-y-2">
+                  <li
+                    v-for="suggestion in cardSuggestions"
+                    :key="suggestion.searchedName"
+                    class="space-y-2"
+                  >
+                    <div class="flex items-center justify-between gap-3">
+                      <div class="flex items-center gap-2 min-w-0 flex-1">
                         <UIcon
                           name="i-lucide-arrow-right"
                           class="size-4 text-info shrink-0"
                         />
-                        <span class="text-sm font-semibold">Hai scritto:</span>
+                        <div class="min-w-0 flex-1">
+                          <p class="font-mono text-sm text-muted line-through truncate">
+                            {{ suggestion.searchedName }}
+                          </p>
+                          <p class="font-mono text-sm text-success truncate">
+                            {{ suggestion.suggestedCard.name }}
+                          </p>
+                        </div>
                       </div>
-                      <p class="font-mono text-sm text-muted line-through ml-6">
-                        {{ suggestion.searchedName }}
-                      </p>
-
-                      <div class="flex items-center gap-2 mt-2 mb-1">
-                        <UIcon
-                          name="i-lucide-check"
-                          class="size-4 text-success shrink-0"
-                        />
-                        <span class="text-sm font-semibold">Forse intendevi:</span>
-                      </div>
-                      <p class="font-mono text-sm ml-6">
-                        {{ suggestion.suggestedCard.name }}
-                      </p>
                     </div>
-                  </div>
 
-                  <div class="flex gap-2 mt-3">
-                    <UButton
-                      size="xs"
-                      color="info"
-                      variant="solid"
-                      icon="i-lucide-check"
-                      @click="applySuggestion(suggestion.searchedName, suggestion.suggestedCard.name)"
-                    >
-                      Applica Correzione
-                    </UButton>
-                    <UButton
-                      size="xs"
-                      color="neutral"
-                      variant="ghost"
-                      icon="i-lucide-x"
-                      @click="dismissSuggestion(suggestion.searchedName)"
-                    >
-                      Ignora
-                    </UButton>
-                  </div>
-                </div>
+                    <div class="flex gap-2 ml-6">
+                      <UButton
+                        size="xs"
+                        color="info"
+                        variant="solid"
+                        icon="i-lucide-check"
+                        @click="applySuggestion(suggestion.searchedName, suggestion.suggestedCard.name)"
+                      >
+                        Applica
+                      </UButton>
+                      <UButton
+                        size="xs"
+                        color="neutral"
+                        variant="ghost"
+                        icon="i-lucide-x"
+                        @click="dismissSuggestion(suggestion.searchedName)"
+                      >
+                        Ignora
+                      </UButton>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+
+              <div class="flex items-start gap-2 text-xs text-muted">
+                <UIcon
+                  name="i-lucide-lightbulb"
+                  class="size-4 mt-0.5 shrink-0"
+                />
+                <span>
+                  Le correzioni sono state trovate tramite ricerca fuzzy su Scryfall.
+                </span>
               </div>
             </div>
           </UCard>
