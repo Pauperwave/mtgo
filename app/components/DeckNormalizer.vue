@@ -101,9 +101,9 @@ const lineCount = computed(() => input.value.split('\n').filter(l => l.trim()).l
 // ============================================
 
 const hasInput = computed(() => input.value.trim().length > 0)
-const hasSideboard = computed(() => /^sideboard$/im.test(input.value))
-const hasNormalized = computed(() => normalizedOutput.value.length > 0)
-const hasCopied = computed(() => copied.value)
+const hasSideboard = computed(() => hasInput.value && /^sideboard$/im.test(input.value))
+const hasNormalized = computed(() => hasInput.value && normalizedOutput.value.length > 0)
+const hasCopied = computed(() => hasInput.value && copied.value)
 
 interface ChecklistItem {
   id: string
@@ -113,6 +113,20 @@ interface ChecklistItem {
   color: ComputedRef<string>
   children?: ChecklistItem[]
 }
+
+// ============================================
+// Watch for input reset
+// ============================================
+
+watch(input, (newValue) => {
+  if (!newValue.trim()) {
+    // Reset all state when input is cleared
+    normalizedOutput.value = ''
+    missingCards.value = []
+    cardSuggestions.value = []
+    // Don't reset copied - it's read-only from useClipboard
+  }
+})
 
 const checklistItems = computed<ChecklistItem[]>(() => [
   {
@@ -133,18 +147,18 @@ const checklistItems = computed<ChecklistItem[]>(() => [
     id: 'normalize',
     label: 'Clicca "Normalizza Mazzo" per recuperare i dati delle carte e formattare',
     completed: hasNormalized,
-    icon: computed(() => 
-      hasNormalized.value 
-        ? 'i-lucide-check-circle-2' 
-        : isLoading.value 
-          ? 'i-lucide-loader-circle' 
+    icon: computed(() =>
+      hasNormalized.value
+        ? 'i-lucide-check-circle-2'
+        : isLoading.value
+          ? 'i-lucide-loader-circle'
           : 'i-lucide-circle'
     ),
-    color: computed(() => 
-      hasNormalized.value 
-        ? 'text-success' 
-        : isLoading.value 
-          ? 'text-warning' 
+    color: computed(() =>
+      hasNormalized.value
+        ? 'text-success'
+        : isLoading.value
+          ? 'text-warning'
           : 'text-muted'
     ),
     children: [
@@ -174,6 +188,8 @@ const checklistItems = computed<ChecklistItem[]>(() => [
 ])
 
 const completedCount = computed(() => {
+  if (!hasInput.value) return 0
+
   let count = 0
   if (hasInput.value) count++
   if (hasSideboard.value) count++
@@ -237,7 +253,6 @@ const totalCount = 4
                 <UBadge
                   :color="completedCount === totalCount ? 'success' : 'neutral'"
                   variant="subtle"
-                  size="xs"
                 >
                   {{ completedCount }}/{{ totalCount }}
                 </UBadge>
@@ -580,13 +595,11 @@ const totalCount = 4
       <!-- Footer -->
       <div class="mt-8 text-center">
         <p class="text-xs text-muted">
-          Alimentato dall'
-          <a
+          Alimentato dall'<a
             href="https://scryfall.com"
             target="_blank"
             class="text-primary hover:underline"
-          >
-            API Scryfall
+          >API Scryfall
           </a>
           • Dati recuperati in tempo reale
         </p>
