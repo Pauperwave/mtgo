@@ -280,7 +280,7 @@ const lineCount = computed(() => input.value.split('\n').filter(l => l.trim()).l
       <!-- Footer -->
       <div class="mt-8 text-center">
         <p class="text-xs text-muted">
-          Powered by
+          Alimentato dall'
           <a
             href="https://scryfall.com"
             target="_blank"
@@ -288,7 +288,7 @@ const lineCount = computed(() => input.value.split('\n').filter(l => l.trim()).l
           >
             Scryfall API
           </a>
-          · Data fetched in real-time
+          · Dati recuperati in tempo reale
         </p>
       </div>
     </div>
