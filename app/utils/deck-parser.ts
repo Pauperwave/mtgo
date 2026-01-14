@@ -15,7 +15,7 @@ export function parseRawDeck(text: string): ParsedCard[] {
     if (!trimmedLine) continue
 
     // Check for sideboard delimiter
-    if (/^sideboard$/i.test(trimmedLine)) {
+    if (/^sideboard:?$/i.test(trimmedLine)) {
       isSideboard = true
       continue
     }
