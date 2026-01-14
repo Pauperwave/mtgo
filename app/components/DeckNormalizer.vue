@@ -1,7 +1,18 @@
 <script setup lang="ts">
 import { parseRawDeck } from '~/utils/deck-parser'
-import { useDeckNormalizer, type CardSuggestion } from '~/composables/useDeckNormalizer'
+import { useDeckNormalizer } from '~/composables/useDeckNormalizer'
+import { useChecklist } from '~/composables/useChecklist'
+import { useSuggestions } from '~/composables/useSuggestions'
 import { useClipboard } from '@vueuse/core'
+
+// Import sub-components
+import ProgressChecklist from './deck-normalizer/ProgressChecklist.vue'
+import InputCard from './deck-normalizer/InputCard.vue'
+import ErrorCard from './deck-normalizer/ErrorCard.vue'
+import SuggestionsCard from './deck-normalizer/SuggestionsCard.vue'
+import MissingCardsCard from './deck-normalizer/MissingCardsCard.vue'
+import OutputCard from './deck-normalizer/OutputCard.vue'
+import EmptyState from './deck-normalizer/EmptyState.vue'
 
 // ============================================
 // State
@@ -10,23 +21,21 @@ import { useClipboard } from '@vueuse/core'
 const input = ref('')
 const normalizedOutput = ref('')
 const missingCards = ref<string[]>([])
-const cardSuggestions = ref<CardSuggestion[]>([])
 
 const { isLoading, error, fetchAndBuildIndex, normalize } = useDeckNormalizer()
+const { copy, copied } = useClipboard()
 
 // ============================================
-// Normalization (button click)
+// Normalization
 // ============================================
 
 async function handleNormalize() {
-  if (!input.value.trim()) {
-    return
-  }
+  if (!input.value.trim()) return
 
   // Reset state
   missingCards.value = []
   normalizedOutput.value = ''
-  cardSuggestions.value = []
+  suggestions.clearSuggestions()
 
   try {
     const parsed = parseRawDeck(input.value)
@@ -35,19 +44,14 @@ async function handleNormalize() {
       throw new Error('Nessuna carta trovata nell\'input')
     }
 
-    // Fetch Scryfall data and build index
     const cardNames = parsed.map(c => c.name)
     const fetchedSuggestions = await fetchAndBuildIndex(cardNames)
 
-    // Store suggestions
-    cardSuggestions.value = fetchedSuggestions
-
-    // Normalize and display
+    suggestions.setSuggestions(fetchedSuggestions)
     normalizedOutput.value = normalize(parsed)
   } catch (err) {
     console.error('Errore di normalizzazione:', err)
 
-    // Extract missing card names from error message
     if (err instanceof Error && err.message.includes('Missing Scryfall data for:')) {
       const cardsString = err.message.replace('Missing Scryfall data for: ', '')
       if (cardsString) {
@@ -58,60 +62,21 @@ async function handleNormalize() {
 }
 
 // ============================================
-// Apply suggestion
+// Suggestions
 // ============================================
 
-function applySuggestion(searchedName: string, suggestedName: string) {
-  // Replace the incorrect name with the suggested one in the input
-  input.value = input.value.replace(
-    new RegExp(`(\\d+\\s+)${searchedName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'g'),
-    `$1${suggestedName}`
-  )
-
-  // Remove this suggestion
-  cardSuggestions.value = cardSuggestions.value.filter(s => s.searchedName !== searchedName)
-
-  // Re-normalize if there are no more suggestions
-  if (cardSuggestions.value.length === 0) {
-    handleNormalize()
-  }
-}
-
-function dismissSuggestion(searchedName: string) {
-  cardSuggestions.value = cardSuggestions.value.filter(s => s.searchedName !== searchedName)
-}
+const suggestions = useSuggestions(input, handleNormalize)
 
 // ============================================
-// Copy to clipboard
+// Checklist
 // ============================================
 
-const { copy, copied } = useClipboard()
-
-function copyToClipboard() {
-  if (normalizedOutput.value) {
-    copy(normalizedOutput.value)
-  }
-}
-
-const lineCount = computed(() => input.value.split('\n').filter(l => l.trim()).length)
-
-// ============================================
-// Checklist state
-// ============================================
-
-const hasInput = computed(() => input.value.trim().length > 0)
-const hasSideboard = computed(() => hasInput.value && /^sideboard$/im.test(input.value))
-const hasNormalized = computed(() => hasInput.value && normalizedOutput.value.length > 0)
-const hasCopied = computed(() => hasInput.value && copied.value)
-
-interface ChecklistItem {
-  id: string
-  label: string
-  completed: ComputedRef<boolean>
-  icon: ComputedRef<string>
-  color: ComputedRef<string>
-  children?: ChecklistItem[]
-}
+const { checklistItems, completedCount, totalCount } = useChecklist(
+  input,
+  normalizedOutput,
+  copied,
+  isLoading
+)
 
 // ============================================
 // Watch for input reset
@@ -119,102 +84,40 @@ interface ChecklistItem {
 
 watch(input, (newValue) => {
   if (!newValue.trim()) {
-    // Reset all state when input is cleared
     normalizedOutput.value = ''
     missingCards.value = []
-    cardSuggestions.value = []
-    // Don't reset copied - it's read-only from useClipboard
+    suggestions.clearSuggestions()
   }
 })
 
-const checklistItems = computed<ChecklistItem[]>(() => [
-  {
-    id: 'paste',
-    label: 'Incolla la lista del mazzo in formato MTGO',
-    completed: hasInput,
-    icon: computed(() => hasInput.value ? 'i-lucide-check-circle-2' : 'i-lucide-circle'),
-    color: computed(() => hasInput.value ? 'text-success' : 'text-muted')
-  },
-  {
-    id: 'sideboard',
-    label: 'Usa "Sideboard" su una riga separata per separare le carte del sideboard',
-    completed: hasSideboard,
-    icon: computed(() => hasSideboard.value ? 'i-lucide-check-circle-2' : 'i-lucide-circle'),
-    color: computed(() => hasSideboard.value ? 'text-success' : 'text-muted')
-  },
-  {
-    id: 'normalize',
-    label: 'Clicca "Normalizza Mazzo" per recuperare i dati delle carte e formattare',
-    completed: hasNormalized,
-    icon: computed(() =>
-      hasNormalized.value
-        ? 'i-lucide-check-circle-2'
-        : isLoading.value
-          ? 'i-lucide-loader-circle'
-          : 'i-lucide-circle'
-    ),
-    color: computed(() =>
-      hasNormalized.value
-        ? 'text-success'
-        : isLoading.value
-          ? 'text-warning'
-          : 'text-muted'
-    ),
-    children: [
-      {
-        id: 'main-sort',
-        label: 'Main deck ordinato per valore di mana e poi in ordine alfabetico',
-        completed: hasNormalized,
-        icon: computed(() => hasNormalized.value ? 'i-lucide-check' : 'i-lucide-arrow-right'),
-        color: computed(() => hasNormalized.value ? 'text-success' : 'text-muted')
-      },
-      {
-        id: 'sideboard-sort',
-        label: 'Sideboard per quantità e ordine alfabetico',
-        completed: hasNormalized,
-        icon: computed(() => hasNormalized.value ? 'i-lucide-check' : 'i-lucide-arrow-right'),
-        color: computed(() => hasNormalized.value ? 'text-success' : 'text-muted')
-      }
-    ]
-  },
-  {
-    id: 'copy',
-    label: 'Clicca "Copia" per copiare l\'output normalizzato negli appunti',
-    completed: hasCopied,
-    icon: computed(() => hasCopied.value ? 'i-lucide-check-circle-2' : 'i-lucide-circle'),
-    color: computed(() => hasCopied.value ? 'text-success' : 'text-muted')
-  }
-])
+// ============================================
+// Computed
+// ============================================
 
-const completedCount = computed(() => {
-  if (!hasInput.value) return 0
-
-  let count = 0
-  if (hasInput.value) count++
-  if (hasSideboard.value) count++
-  if (hasNormalized.value) count++
-  if (hasCopied.value) count++
-  return count
-})
-
-const totalCount = 4
-
-// ===========================================
-// Error details
-// ===========================================
+const lineCount = computed(() => input.value.split('\n').filter(l => l.trim()).length)
 
 const errorMessage = computed(() => {
   if (!error.value) return ''
-  // Extract the first line (main message)
-  return error.value.split('\n\n')[0]
+  return error.value.split('\n\n')[0] || '' // ← Fix: garantisce sempre stringa
 })
 
 const errorLines = computed(() => {
   if (!error.value) return []
-  // Extract bullet points (lines starting with •)
   const lines = error.value.split('\n')
   return lines.filter(line => line.trim().startsWith('•')).map(line => line.trim().replace('• ', ''))
 })
+
+const showEmptyState = computed(() =>
+  !normalizedOutput.value
+  && missingCards.value.length === 0
+  && suggestions.suggestions.value.length === 0 // ← Rimosso .value se hai tolto readonly
+)
+
+function copyToClipboard() {
+  if (normalizedOutput.value) {
+    copy(normalizedOutput.value)
+  }
+}
 </script>
 
 <template>
@@ -242,425 +145,49 @@ const errorLines = computed(() => {
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Left Column: Input -->
         <div class="space-y-4">
-          <!-- Dynamic Checklist Card -->
-          <UCard>
-            <template #header>
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                  <UIcon
-                    name="i-lucide-list-checks"
-                    class="size-5 text-primary"
-                  />
-                  <h3 class="text-sm font-semibold">
-                    Progresso
-                  </h3>
-                </div>
-                <UBadge
-                  :color="completedCount === totalCount ? 'success' : 'neutral'"
-                  variant="subtle"
-                >
-                  {{ completedCount }}/{{ totalCount }}
-                </UBadge>
-              </div>
-            </template>
+          <ProgressChecklist
+            :items="checklistItems"
+            :completed-count="completedCount"
+            :total-count="totalCount"
+            :is-loading="isLoading"
+          />
 
-            <div class="space-y-3">
-              <!-- Progress Bar -->
-              <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                <div
-                  class="bg-primary h-2 rounded-full transition-all duration-500 ease-out"
-                  :style="{ width: `${(completedCount / totalCount) * 100}%` }"
-                />
-              </div>
-
-              <!-- Checklist Items -->
-              <ul class="space-y-2 text-sm">
-                <li
-                  v-for="item in checklistItems"
-                  :key="item.id"
-                  class="space-y-1"
-                >
-                  <div class="flex items-start gap-2">
-                    <UIcon
-                      :name="item.icon.value"
-                      :class="[
-                        'size-4 mt-0.5 shrink-0 transition-colors',
-                        item.color.value,
-                        isLoading && item.id === 'normalize' ? 'animate-spin' : ''
-                      ]"
-                    />
-                    <span
-                      :class="[
-                        'transition-colors',
-                        item.completed.value ? 'text-default' : 'text-muted'
-                      ]"
-                    >
-                      {{ item.label }}
-                    </span>
-                  </div>
-
-                  <!-- Child items (sub-steps) -->
-                  <ul
-                    v-if="item.children"
-                    class="ml-6 space-y-1"
-                  >
-                    <li
-                      v-for="child in item.children"
-                      :key="child.id"
-                      class="flex items-start gap-2"
-                    >
-                      <UIcon
-                        :name="child.icon.value"
-                        :class="[
-                          'size-4 mt-0.5 shrink-0 transition-colors',
-                          child.color.value
-                        ]"
-                      />
-                      <span
-                        :class="[
-                          'text-xs transition-colors',
-                          child.completed.value ? 'text-default' : 'text-muted'
-                        ]"
-                      >
-                        {{ child.label }}
-                      </span>
-                    </li>
-                  </ul>
-                </li>
-              </ul>
-
-              <!-- Completion Message -->
-              <div
-                v-if="completedCount === totalCount"
-                class="mt-4 p-3 bg-success/10 border border-success/20 rounded-lg flex items-center gap-2"
-              >
-                <UIcon
-                  name="i-lucide-party-popper"
-                  class="size-5 text-success shrink-0"
-                />
-                <span class="text-sm text-success font-medium">
-                  Complimenti! Hai completato tutti i passaggi.
-                </span>
-              </div>
-            </div>
-          </UCard>
-
-          <UCard>
-            <template #header>
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                  <UIcon
-                    name="i-lucide-file-input"
-                    class="size-5 text-primary"
-                  />
-                  <h2 class="text-lg font-semibold">
-                    Input
-                  </h2>
-                </div>
-                <UBadge
-                  v-if="input.trim()"
-                  color="neutral"
-                  variant="subtle"
-                >
-                  {{ lineCount }} righe
-                </UBadge>
-              </div>
-            </template>
-
-            <div class="space-y-4">
-              <UButton
-                icon="i-lucide-wand-sparkles"
-                size="lg"
-                block
-                :loading="isLoading"
-                :disabled="!input.trim()"
-                @click="handleNormalize"
-              >
-                {{ isLoading ? 'Normalizzazione in corso...' : 'Normalizza Mazzo' }}
-              </UButton>
-
-              <UTextarea
-                v-model="input"
-                autoresize
-                color="primary"
-                variant="outline"
-                size="lg"
-                autofocus
-                placeholder="Incolla la lista del tuo mazzo qui..."
-                class="font-mono w-full"
-              />
-            </div>
-          </UCard>
+          <InputCard
+            v-model="input"
+            :line-count="lineCount"
+            :is-loading="isLoading"
+            @normalize="handleNormalize"
+          />
         </div>
 
         <!-- Right Column: Output -->
         <div class="space-y-4">
-          <!-- Error Alert -->
-          <UCard
+          <ErrorCard
             v-if="error"
-            color="error"
-            class="mb-6 border-error/50"
-          >
-            <template #header>
-              <div class="flex items-center gap-2">
-                <UIcon
-                  name="i-lucide-alert-circle"
-                  class="size-5 text-error"
-                />
-                <h2 class="text-lg font-semibold">
-                  Errore
-                </h2>
-              </div>
-            </template>
+            :message="errorMessage"
+            :lines="errorLines"
+          />
 
-            <div class="space-y-3">
-              <p class="text-sm text-muted">
-                {{ errorMessage }}
-              </p>
-
-              <div class="bg-error/5 rounded-lg p-3 border border-error/20">
-                <ul class="space-y-2">
-                  <li
-                    v-for="line in errorLines"
-                    :key="line"
-                    class="flex items-center justify-between gap-3"
-                  >
-                    <div class="flex items-center gap-2 min-w-0 flex-1">
-                      <UIcon
-                        name="i-lucide-x-circle"
-                        class="size-4 text-error shrink-0"
-                      />
-                      <span class="font-mono text-sm">{{ line }}</span>
-                    </div>
-                    <UButton
-                      :to="`https://scryfall.com/search?q=${encodeURIComponent(line)}`"
-                      target="_blank"
-                      size="xs"
-                      variant="soft"
-                      color="error"
-                      icon="i-lucide-search"
-                      trailing
-                    >
-                      Cerca
-                    </UButton>
-                  </li>
-                </ul>
-              </div>
-
-              <div class="flex items-start gap-2 text-xs text-muted">
-                <UIcon
-                  name="i-lucide-lightbulb"
-                  class="size-4 mt-0.5 shrink-0"
-                />
-                <span>
-                  Clicca su "Cerca" per trovare la carta su Scryfall e verificare il nome esatto.
-                </span>
-              </div>
-            </div>
-          </UCard>
-
-          <!-- Missing Cards Warning -->
-          <UCard
+          <MissingCardsCard
             v-if="missingCards.length > 0"
-            color="warning"
-            class="border-warning/50"
-          >
-            <template #header>
-              <div class="flex items-center gap-2">
-                <UIcon
-                  name="i-lucide-alert-triangle"
-                  class="size-5 text-warning"
-                />
-                <h2 class="text-lg font-semibold">
-                  Carte Non Trovate
-                </h2>
-              </div>
-            </template>
+            :cards="missingCards"
+          />
 
-            <div class="space-y-3">
-              <p class="text-sm text-muted">
-                {{ missingCards.length > 1 ? 'Le seguenti carte non sono state trovate' : 'La seguente carta non è stata trovata' }} su Scryfall.
-                Controlla l'ortografia o il nome della carta.
-              </p>
+          <SuggestionsCard
+            v-if="suggestions.suggestions.value.length > 0"
+            :suggestions="suggestions.suggestions.value"
+            @apply="suggestions.applySuggestion"
+            @dismiss="suggestions.dismissSuggestion"
+          />
 
-              <div class="bg-warning/5 rounded-lg p-3 border border-warning/20">
-                <ul class="space-y-2">
-                  <li
-                    v-for="cardName in missingCards"
-                    :key="cardName"
-                    class="flex items-center justify-between gap-3"
-                  >
-                    <div class="flex items-center gap-2 min-w-0 flex-1">
-                      <UIcon
-                        name="i-lucide-x-circle"
-                        class="size-4 text-warning shrink-0"
-                      />
-                      <span class="font-mono text-sm truncate">{{ cardName }}</span>
-                    </div>
-                    <UButton
-                      :to="`https://scryfall.com/search?q=${encodeURIComponent(cardName)}`"
-                      target="_blank"
-                      size="xs"
-                      variant="soft"
-                      color="warning"
-                      icon="i-lucide-search"
-                      trailing
-                    >
-                      Cerca
-                    </UButton>
-                  </li>
-                </ul>
-              </div>
-
-              <div class="flex items-start gap-2 text-xs text-muted">
-                <UIcon
-                  name="i-lucide-lightbulb"
-                  class="size-4 mt-0.5 shrink-0"
-                />
-                <span>
-                  Clicca su "Cerca" per trovare la carta su Scryfall e verificare il nome esatto.
-                </span>
-              </div>
-            </div>
-          </UCard>
-
-          <!-- Card Suggestions -->
-          <UCard
-            v-if="cardSuggestions.length > 0"
-            color="info"
-            class="border-info/50"
-          >
-            <template #header>
-              <div class="flex items-center gap-2">
-                <UIcon
-                  name="i-lucide-lightbulb"
-                  class="size-5 text-info"
-                />
-                <h2 class="text-lg font-semibold">
-                  Carte Non Riconosciute
-                </h2>
-              </div>
-            </template>
-
-            <div class="space-y-3">
-              <p class="text-sm text-muted">
-                {{ cardSuggestions.length > 1 ? 'Le seguenti carte non sono state riconosciute' : 'La seguente carta non è stata riconosciuta' }} esattamente, ma {{ cardSuggestions.length > 1 ? 'sono state trovate corrispondenze' : 'è stata trovata una corrispondenza' }} simili.
-                Vuoi applicare {{ cardSuggestions.length > 1 ? 'le correzioni' : 'la correzione' }}?
-              </p>
-
-              <div class="bg-info/5 rounded-lg p-3 border border-info/20">
-                <ul class="space-y-2">
-                  <li
-                    v-for="suggestion in cardSuggestions"
-                    :key="suggestion.searchedName"
-                    class="space-y-2"
-                  >
-                    <div class="flex items-center justify-between gap-3">
-                      <div class="flex items-center gap-2 min-w-0 flex-1">
-                        <UIcon
-                          name="i-lucide-arrow-right"
-                          class="size-4 text-info shrink-0"
-                        />
-                        <div class="min-w-0 flex-1">
-                          <p class="font-mono text-sm text-muted line-through truncate">
-                            {{ suggestion.searchedName }}
-                          </p>
-                          <p class="font-mono text-sm text-success truncate">
-                            {{ suggestion.suggestedCard.name }}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div class="flex gap-2 ml-6">
-                      <UButton
-                        size="xs"
-                        color="info"
-                        variant="solid"
-                        icon="i-lucide-check"
-                        @click="applySuggestion(suggestion.searchedName, suggestion.suggestedCard.name)"
-                      >
-                        Applica
-                      </UButton>
-                      <UButton
-                        size="xs"
-                        color="neutral"
-                        variant="ghost"
-                        icon="i-lucide-x"
-                        @click="dismissSuggestion(suggestion.searchedName)"
-                      >
-                        Ignora
-                      </UButton>
-                    </div>
-                  </li>
-                </ul>
-              </div>
-
-              <div class="flex items-start gap-2 text-xs text-muted">
-                <UIcon
-                  name="i-lucide-lightbulb"
-                  class="size-4 mt-0.5 shrink-0"
-                />
-                <span>
-                  Le correzioni sono state trovate tramite ricerca fuzzy su Scryfall.
-                </span>
-              </div>
-            </div>
-          </UCard>
-
-          <!-- Normalized Output -->
-          <UCard
+          <OutputCard
             v-if="normalizedOutput"
-            class="border-success/20"
-          >
-            <template #header>
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                  <UIcon
-                    name="i-lucide-file-check"
-                    class="size-5 text-success"
-                  />
-                  <h2 class="text-lg font-semibold">
-                    Output Normalizzato
-                  </h2>
-                </div>
-                <UButton
-                  size="xs"
-                  variant="ghost"
-                  color="success"
-                  :icon="copied ? 'i-lucide-check' : 'i-lucide-copy'"
-                  @click="copyToClipboard"
-                >
-                  {{ copied ? 'Copiato!' : 'Copia' }}
-                </UButton>
-              </div>
-            </template>
+            :output="normalizedOutput"
+            :copied="copied"
+            @copy="copyToClipboard"
+          />
 
-            <div class="rounded-lg overflow-y-auto">
-              <pre class="text-sm font-mono whitespace-pre-wrap text-gray-900 dark:text-gray-100">{{ normalizedOutput }}</pre>
-            </div>
-          </UCard>
-
-          <!-- Empty State -->
-          <UCard
-            v-if="!normalizedOutput && missingCards.length === 0 && cardSuggestions.length === 0"
-            class="border-dashed"
-          >
-            <div class="flex flex-col items-center justify-center py-16 text-center">
-              <div class="p-4 bg-gray-100 dark:bg-gray-800 rounded-full mb-4">
-                <UIcon
-                  name="i-lucide-file-output"
-                  class="size-8 text-muted"
-                />
-              </div>
-              <h3 class="text-lg font-semibold mb-2">
-                Ancora nessun output
-              </h3>
-              <p class="text-sm text-muted max-w-xs">
-                Incolla la lista del tuo mazzo e clicca "Normalizza Mazzo" per vedere l'output formattato
-              </p>
-            </div>
-          </UCard>
+          <EmptyState v-if="showEmptyState" />
         </div>
       </div>
 
@@ -671,8 +198,7 @@ const errorLines = computed(() => {
             href="https://scryfall.com"
             target="_blank"
             class="text-primary hover:underline"
-          >API Scryfall
-          </a>
+          >API Scryfall</a>
           • Dati recuperati in tempo reale
         </p>
       </div>
