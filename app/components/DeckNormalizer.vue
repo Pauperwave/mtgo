@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { parseRawDeck } from '~/utils/deck-parser'
+import { validatePauperDeck, type ValidationResult } from '~/utils/deck-validator'
 import { useDeckNormalizer } from '~/composables/useDeckNormalizer'
 import { useChecklist } from '~/composables/useChecklist'
 import { useSuggestions } from '~/composables/useSuggestions'
@@ -9,6 +10,7 @@ import { useClipboard } from '@vueuse/core'
 import ProgressChecklist from './deck-normalizer/ProgressChecklist.vue'
 import InputCard from './deck-normalizer/InputCard.vue'
 import ErrorCard from './deck-normalizer/ErrorCard.vue'
+import ValidationCard from './deck-normalizer/ValidationCard.vue'
 import SuggestionsCard from './deck-normalizer/SuggestionsCard.vue'
 import MissingCardsCard from './deck-normalizer/MissingCardsCard.vue'
 import OutputCard from './deck-normalizer/OutputCard.vue'
@@ -21,6 +23,7 @@ import EmptyState from './deck-normalizer/EmptyState.vue'
 const input = ref('')
 const normalizedOutput = ref('')
 const missingCards = ref<string[]>([])
+const validation = ref<ValidationResult | null>(null)
 
 const { isLoading, error, fetchAndBuildIndex, normalize } = useDeckNormalizer()
 const { copy, copied } = useClipboard()
@@ -35,6 +38,7 @@ async function handleNormalize() {
   // Reset state
   missingCards.value = []
   normalizedOutput.value = ''
+  validation.value = null
   suggestions.clearSuggestions()
 
   try {
@@ -43,6 +47,9 @@ async function handleNormalize() {
     if (parsed.length === 0) {
       throw new Error('Nessuna carta trovata nell\'input')
     }
+
+    // Validate deck
+    validation.value = validatePauperDeck(parsed)
 
     const cardNames = parsed.map(c => c.name)
     const fetchedSuggestions = await fetchAndBuildIndex(cardNames)
@@ -86,6 +93,7 @@ watch(input, (newValue) => {
   if (!newValue.trim()) {
     normalizedOutput.value = ''
     missingCards.value = []
+    validation.value = null
     suggestions.clearSuggestions()
   }
 })
@@ -98,7 +106,7 @@ const lineCount = computed(() => input.value.split('\n').filter(l => l.trim()).l
 
 const errorMessage = computed(() => {
   if (!error.value) return ''
-  return error.value.split('\n\n')[0] || '' // ← Fix: garantisce sempre stringa
+  return error.value.split('\n\n')[0] || ''
 })
 
 const errorLines = computed(() => {
@@ -110,7 +118,7 @@ const errorLines = computed(() => {
 const showEmptyState = computed(() =>
   !normalizedOutput.value
   && missingCards.value.length === 0
-  && suggestions.suggestions.value.length === 0 // ← Rimosso .value se hai tolto readonly
+  && suggestions.suggestions.value.length === 0
 )
 
 function copyToClipboard() {
@@ -166,6 +174,11 @@ function copyToClipboard() {
             v-if="error"
             :message="errorMessage"
             :lines="errorLines"
+          />
+
+          <ValidationCard
+            v-if="validation"
+            :validation="validation"
           />
 
           <MissingCardsCard
