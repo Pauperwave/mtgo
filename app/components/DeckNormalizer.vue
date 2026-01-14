@@ -199,6 +199,10 @@ const completedCount = computed(() => {
 
 const totalCount = 4
 
+// ===========================================
+// Error details
+// ===========================================
+
 const errorMessage = computed(() => {
   if (!error.value) return ''
   // Extract the first line (main message)
