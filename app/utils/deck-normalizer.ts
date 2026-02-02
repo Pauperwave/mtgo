@@ -164,6 +164,7 @@ export function normalizeDeckWithIndex(
       ...card,
       section,
       cmc: scryfall.cmc,
+      mana_cost: scryfall.mana_cost ?? null,
       landCategory
     })
   }
@@ -274,9 +275,17 @@ function sortCards(cards: readonly NormalizedCard[], section: Section): Normaliz
   } else {
     // Main deck: by CMC, then alphabetically
     sorted.sort((a, b) => {
+      const aHasX = (a.mana_cost || '').includes('X')
+      const bHasX = (b.mana_cost || '').includes('X')
+
+      if (aHasX !== bHasX) {
+        return aHasX ? 1 : -1 // put X-cost cards last
+      }
+
       if (a.cmc !== b.cmc) {
         return (a.cmc || 0) - (b.cmc || 0)
       }
+
       return a.name.localeCompare(b.name)
     })
   }
