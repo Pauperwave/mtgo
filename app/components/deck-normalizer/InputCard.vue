@@ -32,13 +32,23 @@ const localValue = computed({
             Input
           </h2>
         </div>
-        <UBadge
-          v-if="modelValue.trim()"
-          color="neutral"
-          variant="subtle"
-        >
-          {{ lineCount }} righe
-        </UBadge>
+        <div class="flex items-center gap-2">
+          <UBadge
+            v-if="modelValue.trim()"
+            color="neutral"
+            variant="subtle"
+          >
+            {{ lineCount }} righe
+          </UBadge>
+          <UButton
+            icon="i-lucide-trash-2"
+            color="error"
+            variant="subtle"
+            :disabled="!modelValue.trim()"
+            aria-label="Svuota input"
+            @click="emit('update:modelValue', '')"
+          />
+        </div>
       </div>
     </template>
 
