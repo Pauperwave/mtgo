@@ -20,6 +20,10 @@ import type {
   NormalizedCard,
   ScryfallCard
 } from '~/types/deck'
+import {
+  categorizeLand,
+  landCategoryRank
+} from '~/utils/land-categories'
 
 /* -------------------------------------------------
  * Output order
@@ -147,13 +151,20 @@ export function normalizeDeckWithIndex(
       continue
     }
 
+    const section = sectionFromTypeLine(
+      scryfall.type_line,
+      card.isSideboard
+    )
+
+    const landCategory = section === 'Land'
+      ? categorizeLand(scryfall)
+      : undefined
+
     normalized.push({
       ...card,
-      section: sectionFromTypeLine(
-        scryfall.type_line,
-        card.isSideboard
-      ),
-      cmc: scryfall.cmc
+      section,
+      cmc: scryfall.cmc,
+      landCategory
     })
   }
 
@@ -209,7 +220,32 @@ function getCombinedQuantity(
 function sortCards(cards: readonly NormalizedCard[], section: Section): NormalizedCard[] {
   const sorted = [...cards]
 
-  if (section === 'Sideboard') {
+  if (section === 'Land') {
+    // Custom land order: category rank > quantity > name
+    sorted.sort((a, b) => {
+      const categoryA = a.landCategory ?? categorizeLand({
+        name: a.name,
+        type_line: 'Land',
+        cmc: a.cmc,
+        oracle_text: '',
+        color_identity: []
+      })
+      const categoryB = b.landCategory ?? categorizeLand({
+        name: b.name,
+        type_line: 'Land',
+        cmc: b.cmc,
+        oracle_text: '',
+        color_identity: []
+      })
+
+      const rankA = landCategoryRank(categoryA)
+      const rankB = landCategoryRank(categoryB)
+
+      if (rankA !== rankB) return rankA - rankB
+      if (a.quantity !== b.quantity) return b.quantity - a.quantity
+      return a.name.localeCompare(b.name)
+    })
+  } else if (section === 'Sideboard') {
     // Sideboard: by combined quantity (descending), then alphabetically
     sorted.sort((a, b) => {
       const qtyA = getCombinedQuantity(cards, a)

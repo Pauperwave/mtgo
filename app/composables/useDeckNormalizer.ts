@@ -60,6 +60,20 @@ export function useDeckNormalizer() {
     }
 
     const normalized = normalizeDeckWithIndex(parsed, scryfallIndex.value)
+
+    // Log land categories for visibility when "Normalizza Mazzo" is clicked
+    const landRows = normalized
+      .filter(card => card.section === 'Land')
+      .map(card => ({
+        quantity: card.quantity,
+        name: card.name,
+        category: card.landCategory ?? 'Unknown'
+      }))
+
+    if (landRows.length) {
+      console.table(landRows)
+    }
+
     return printDeck(normalized)
   }
 
