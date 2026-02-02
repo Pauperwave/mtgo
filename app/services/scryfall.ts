@@ -44,7 +44,10 @@ async function fetchSingleCard(cardName: string): Promise<ScryfallCard | null> {
       return {
         name: card.name,
         type_line: card.type_line,
-        cmc: card.cmc
+        cmc: card.cmc,
+        mana_cost: card.mana_cost ?? null,
+        oracle_text: card.oracle_text ?? '',
+        color_identity: card.color_identity ?? []
       }
     }
 
@@ -95,7 +98,10 @@ export async function fetchScryfallData(cardNames: string[]): Promise<FetchResul
         allCards.push({
           name: card.name,
           type_line: card.type_line,
-          cmc: card.cmc
+          cmc: card.cmc,
+          mana_cost: card.mana_cost ?? null,
+          oracle_text: card.oracle_text ?? '',
+          color_identity: card.color_identity ?? []
         })
 
         // Mark original names as found IF they match exactly (case-sensitive)
