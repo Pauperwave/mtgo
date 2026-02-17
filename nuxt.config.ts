@@ -7,8 +7,8 @@ export default defineNuxtConfig({
 
   components: [
     {
-      path: '~/components/deck-normalizer',
-      pathPrefix: false // This removes the "DeckNormalizer" prefix
+      path: '~/components',
+      pathPrefix: false
     }
   ],
 
