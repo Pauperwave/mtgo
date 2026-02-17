@@ -2,23 +2,6 @@
 <script setup lang="ts">
 import { useClipboard } from '@vueuse/core'
 
-import { parseRawDeck } from '~/utils/deck-parser'
-import { validatePauperDeck, type ValidationResult } from '~/utils/deck-validator'
-
-import { useDeckNormalizer } from '~/composables/useDeckNormalizer'
-import { useChecklist } from '~/composables/useChecklist'
-import { useSuggestions } from '~/composables/useSuggestions'
-
-// Import sub-components
-import ProgressChecklist from './deck-normalizer/ProgressChecklist.vue'
-import InputCard from './deck-normalizer/InputCard.vue'
-import ErrorCard from './deck-normalizer/ErrorCard.vue'
-import ValidationCard from './deck-normalizer/ValidationCard.vue'
-import SuggestionsCard from './deck-normalizer/SuggestionsCard.vue'
-import MissingCardsCard from './deck-normalizer/MissingCardsCard.vue'
-import OutputCard from './deck-normalizer/OutputCard.vue'
-import EmptyState from './deck-normalizer/EmptyState.vue'
-
 // ============================================
 // State
 // ============================================
