@@ -5,6 +5,13 @@ export default defineNuxtConfig({
     '@nuxt/ui'
   ],
 
+  components: [
+    {
+      path: '~/components/deck-normalizer',
+      pathPrefix: false // This removes the "DeckNormalizer" prefix
+    }
+  ],
+
   devtools: {
     enabled: true
   },
