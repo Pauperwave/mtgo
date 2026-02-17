@@ -1,3 +1,4 @@
+// app\services\scryfall.ts
 /**
  * Scryfall API integration
  * Handles fetching card data with batching and rate limiting
