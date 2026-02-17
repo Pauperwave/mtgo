@@ -1,35 +1,26 @@
+// app\utils\card-autocorrect-whitelist.ts
 /**
  * Whitelist of cards that should be auto-corrected without user confirmation
- * Maps common typos or variations to their correct Scryfall names
+ * These are the CORRECT card names that should be auto-applied when found by fuzzy search
  */
-export const AUTOCORRECT_WHITELIST = new Map<string, string>([
-  // Cards with special characters that users commonly type without accents
-  ['Lorien Revealed', 'Lórien Revealed'],
-  ['Troll of Khazad-dum', 'Troll of Khazad-dûm'],
-  ['Troll of Khazad dum', 'Troll of Khazad-dûm'],
+const AUTOCORRECT_WHITELIST = new Set<string>([
+  // Cards with special characters - auto-apply when Scryfall finds them
+  'Lórien Revealed',
+  'Troll of Khazad-dûm',
 
-  // Double-faced cards - users might type only the front face
-  // Map: what user types -> what they should get
-  ['Delver of Secrets', 'Delver of Secrets // Insectile Aberration'],
-  ['The Modern Age', 'The Modern Age // Vector Glider'],
-  ['Sagu Wildling', 'Sagu Wildling // Roost Seek'],
-  ['Tithing Blade', 'Tithing Blade // Consuming Sepulcher']
+  // Double-faced cards - auto-apply the full name when Scryfall finds them
+  'Delver of Secrets // Insectile Aberration',
+  'The Modern Age // Vector Glider',
+  'Sagu Wildling // Roost Seek',
+  'Tithing Blade // Consuming Sepulcher'
 
-  // You can add more as needed
+  // Add more cards as needed
 ])
 
 /**
- * Check if a card name should be auto-corrected
- * Returns the corrected name if found, otherwise null
- */
-export function getAutocorrectName(searchedName: string): string | null {
-  return AUTOCORRECT_WHITELIST.get(searchedName) ?? null
-}
-
-/**
- * Check if a suggestion should be auto-applied based on whitelist
+ * Check if a suggested card should be auto-applied
+ * Returns true if the suggested card is in the whitelist
  */
 export function shouldAutoApply(searchedName: string, suggestedName: string): boolean {
-  const whitelistedName = AUTOCORRECT_WHITELIST.get(searchedName)
-  return whitelistedName === suggestedName
+  return AUTOCORRECT_WHITELIST.has(suggestedName)
 }
