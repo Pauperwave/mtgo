@@ -1,6 +1,7 @@
 <!-- app\components\DeckNormalizer.vue -->
 <script setup lang="ts">
 import { useClipboard } from '@vueuse/core'
+import { shouldAutoApply } from '~/utils/card-autocorrect-whitelist'
 
 // ============================================
 // State
@@ -13,6 +14,7 @@ const validation = ref<ValidationResult | null>(null)
 
 const { isLoading, error, fetchAndBuildIndex, normalize } = useDeckNormalizer()
 const { copy, copied } = useClipboard()
+const toast = useToast()
 
 // ============================================
 // Normalization
@@ -40,8 +42,49 @@ async function handleNormalize() {
     const cardNames = parsed.map(c => c.name)
     const fetchedSuggestions = await fetchAndBuildIndex(cardNames)
 
-    suggestions.setSuggestions(fetchedSuggestions)
-    normalizedOutput.value = normalize(parsed)
+    // ✨ Separate auto-apply and manual suggestions
+    const autoApplySuggestions = fetchedSuggestions.filter(s =>
+      shouldAutoApply(s.searchedName, s.suggestedCard.name)
+    )
+
+    const manualSuggestions = fetchedSuggestions.filter(s =>
+      !shouldAutoApply(s.searchedName, s.suggestedCard.name)
+    )
+
+    // Auto-apply whitelisted cards
+    if (autoApplySuggestions.length > 0) {
+      console.log('Auto-applying whitelisted suggestions:', autoApplySuggestions)
+
+      autoApplySuggestions.forEach((suggestion) => {
+        suggestions.applySuggestion(suggestion.searchedName, suggestion.suggestedCard.name)
+      })
+
+      // Build detailed description with card names
+      const cardList = autoApplySuggestions
+        .map(s => `"${s.searchedName}" → "${s.suggestedCard.name}"`)
+        .join('\n')
+
+      // Show toast notification with details
+      toast.add({
+        title: 'Correzioni automatiche applicate',
+        description: `${autoApplySuggestions.length} ${autoApplySuggestions.length === 1 ? 'carta corretta' : 'carte corrette'}:\n${cardList}`,
+        icon: 'i-lucide-sparkles',
+        color: 'primary',
+        duration: 5000
+      })
+
+      // Wait for input to update
+      await nextTick()
+    }
+
+    // Show manual suggestions for review
+    if (manualSuggestions.length > 0) {
+      suggestions.setSuggestions(manualSuggestions)
+    }
+
+    // Normalize with updated input
+    const finalParsed = parseRawDeck(input.value)
+    normalizedOutput.value = normalize(finalParsed)
   } catch (err) {
     console.error('Errore di normalizzazione:', err)
 
