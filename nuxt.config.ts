@@ -15,6 +15,11 @@ export default defineNuxtConfig({
     '/': { prerender: true }
   },
 
+  sourcemap: {
+    server: false,
+    client: false
+  },
+
   compatibilityDate: '2025-01-15',
 
   eslint: {
