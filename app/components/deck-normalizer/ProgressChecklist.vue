@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import type { ChecklistItem } from '~/composables/useChecklist'
-
 interface Props {
   items: ChecklistItem[]
   completedCount: number

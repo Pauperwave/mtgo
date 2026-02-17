@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import type { ValidationResult } from '~/utils/deck-validator'
-
 interface Props {
   validation: ValidationResult
 }

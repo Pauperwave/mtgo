@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import type { CardSuggestion } from '~/composables/useDeckNormalizer'
-
 interface Props {
   suggestions: readonly CardSuggestion[]
 }
