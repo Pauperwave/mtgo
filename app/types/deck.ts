@@ -42,5 +42,5 @@ export interface ScryfallCard {
   cmc: number
   mana_cost?: string | null
   oracle_text: string
-  color_identity: string[]
+  color_identity: readonly string[]
 }
