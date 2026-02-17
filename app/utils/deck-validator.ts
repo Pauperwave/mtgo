@@ -21,6 +21,37 @@ export interface ValidationResult {
   }
 }
 
+// Pre-defined constant - no need to recreate on every validation call
+const EXEMPT_LANDS = new Set([
+  'Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes',
+  'Snow-Covered Plains', 'Snow-Covered Island', 'Snow-Covered Swamp',
+  'Snow-Covered Mountain', 'Snow-Covered Forest', 'Snow-Covered Wastes'
+])
+
+// Validation messages
+const VALIDATION_MESSAGES = {
+  mainDeckTooSmall: (count: number) => ({
+    type: 'error' as const,
+    message: `Main deck deve contenere almeno 60 carte (attuale: ${count})`
+  }),
+  mainDeckTooLarge: (count: number) => ({
+    type: 'warning' as const,
+    message: `Main deck contiene più di 60 carte (attuale: ${count}).`
+  }),
+  sideboardTooSmall: (count: number) => ({
+    type: 'warning' as const,
+    message: `La Sideboard può contenere fino a 15 carte (attuale: ${count})`
+  }),
+  sideboardTooLarge: (count: number) => ({
+    type: 'error' as const,
+    message: `La Sideboard non può contenere più di 15 carte (attuale: ${count})`
+  }),
+  tooManyCopies: (cardName: string, count: number) => ({
+    type: 'error' as const,
+    message: `"${cardName}" supera il limite di 4 copie (attuale: ${count})`
+  })
+}
+
 /**
  * Validate a Pauper deck
  */
@@ -28,67 +59,48 @@ export function validatePauperDeck(cards: readonly ParsedCard[]): ValidationResu
   const errors: ValidationError[] = []
   const warnings: ValidationError[] = []
 
-  // Separate main deck and sideboard
-  const mainDeck = cards.filter(c => !c.isSideboard)
-  const sideboard = cards.filter(c => c.isSideboard)
+  let mainDeckCount = 0
+  let sideboardCount = 0
+  const cardCounts = new Map<string, number>()
 
-  // Calculate totals
-  const mainDeckCount = mainDeck.reduce((sum, c) => sum + c.quantity, 0)
-  const sideboardCount = sideboard.reduce((sum, c) => sum + c.quantity, 0)
+  // Single pass: count cards, validate copies, separate deck/sideboard
+  for (const card of cards) {
+    // Update deck/sideboard counts
+    if (card.isSideboard) {
+      sideboardCount += card.quantity
+    } else {
+      mainDeckCount += card.quantity
+    }
+
+    // Rule 4: No more than 4 copies (skip exempt lands)
+    if (EXEMPT_LANDS.has(card.name)) continue
+
+    const currentCount = (cardCounts.get(card.name) || 0) + card.quantity
+
+    if (currentCount > 4) {
+      errors.push(VALIDATION_MESSAGES.tooManyCopies(card.name, currentCount))
+    }
+
+    cardCounts.set(card.name, currentCount)
+  }
 
   // Rule 1: Main deck must be at least 60 cards
   if (mainDeckCount < 60) {
-    errors.push({
-      type: 'error',
-      message: `Main deck deve contenere almeno 60 carte (attuale: ${mainDeckCount})`
-    })
+    errors.push(VALIDATION_MESSAGES.mainDeckTooSmall(mainDeckCount))
   }
 
   // Rule 2: Main deck should not exceed 60 cards (warning)
   if (mainDeckCount > 60) {
-    warnings.push({
-      type: 'warning',
-      message: `Main deck contiene più di 60 carte (attuale: ${mainDeckCount}).`
-    })
+    warnings.push(VALIDATION_MESSAGES.mainDeckTooLarge(mainDeckCount))
   }
 
   // Rule 3: Sideboard must be exactly 0 or 15 cards
   if (sideboardCount > 0 && sideboardCount !== 15) {
     if (sideboardCount < 15) {
-      warnings.push({
-        type: 'warning',
-        message: `La Sideboard può contenere fino a 15 carte (attuale: ${sideboardCount})`
-      })
+      warnings.push(VALIDATION_MESSAGES.sideboardTooSmall(sideboardCount))
     } else {
-      errors.push({
-        type: 'error',
-        message: `La Sideboard non può contenere più di 15 carte (attuale: ${sideboardCount})`
-      })
+      errors.push(VALIDATION_MESSAGES.sideboardTooLarge(sideboardCount))
     }
-  }
-
-  // Rule 4: No more than 4 copies of any card (except basic and snow lands)
-  const exemptLands = new Set([
-    'Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes',
-    'Snow-Covered Plains', 'Snow-Covered Island', 'Snow-Covered Swamp',
-    'Snow-Covered Mountain', 'Snow-Covered Forest', 'Snow-Covered Wastes'
-  ])
-
-  const cardCounts = new Map<string, number>()
-
-  for (const card of cards) {
-    if (exemptLands.has(card.name)) continue
-
-    const currentCount = (cardCounts.get(card.name) || 0) + card.quantity
-
-    if (currentCount > 4) {
-      errors.push({
-        type: 'error',
-        message: `"${card.name}" supera il limite di 4 copie (attuale: ${currentCount})`
-      })
-    }
-
-    cardCounts.set(card.name, currentCount)
   }
 
   return {
