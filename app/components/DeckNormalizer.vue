@@ -51,26 +51,37 @@ async function handleNormalize() {
       !shouldAutoApply(s.searchedName, s.suggestedCard.name)
     )
 
-    // Auto-apply whitelisted cards
+    // Auto-apply whitelisted cards (batch operation - no re-normalization)
     if (autoApplySuggestions.length > 0) {
       console.log('Auto-applying whitelisted suggestions:', autoApplySuggestions)
 
+      // Apply all suggestions at once without triggering re-normalization
+      let updatedInput = input.value
       autoApplySuggestions.forEach((suggestion) => {
-        suggestions.applySuggestion(suggestion.searchedName, suggestion.suggestedCard.name)
+        const searchedNameEscaped = suggestion.searchedName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        updatedInput = updatedInput.replace(
+          new RegExp(`(\\d+\\s+)${searchedNameEscaped}`, 'gi'),
+          `$1${suggestion.suggestedCard.name}`
+        )
       })
 
-      // Build detailed description with card names
+      // Update input once
+      input.value = updatedInput
+
       const cardList = autoApplySuggestions
-        .map(s => `"${s.searchedName}" → "${s.suggestedCard.name}"`)
+        .map(s => `• ${s.searchedName} → ${s.suggestedCard.name}`)
         .join('\n')
 
-      // Show toast notification with details
       toast.add({
         title: 'Correzioni automatiche applicate',
         description: `${autoApplySuggestions.length} ${autoApplySuggestions.length === 1 ? 'carta corretta' : 'carte corrette'}:\n${cardList}`,
         icon: 'i-lucide-sparkles',
         color: 'primary',
-        duration: 5000
+        duration: 6000,
+        ui: {
+          description: 'whitespace-pre-line',
+          root: 'min-w-96'
+        }
       })
 
       // Wait for input to update
