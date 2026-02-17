@@ -1,10 +1,13 @@
+<!-- app\components\DeckNormalizer.vue -->
 <script setup lang="ts">
+import { useClipboard } from '@vueuse/core'
+
 import { parseRawDeck } from '~/utils/deck-parser'
 import { validatePauperDeck, type ValidationResult } from '~/utils/deck-validator'
+
 import { useDeckNormalizer } from '~/composables/useDeckNormalizer'
 import { useChecklist } from '~/composables/useChecklist'
 import { useSuggestions } from '~/composables/useSuggestions'
-import { useClipboard } from '@vueuse/core'
 
 // Import sub-components
 import ProgressChecklist from './deck-normalizer/ProgressChecklist.vue'

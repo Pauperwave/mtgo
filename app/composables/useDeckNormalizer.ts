@@ -1,3 +1,4 @@
+// app\composables\useDeckNormalizer.ts
 /**
  * Composable for deck normalization
  * Manages Scryfall index and provides normalized deck output

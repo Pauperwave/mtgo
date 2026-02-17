@@ -1,3 +1,4 @@
+// app\composables\useSuggestions.ts
 /**
  * Composable for managing card suggestions
  */
