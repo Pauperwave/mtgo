@@ -21,35 +21,102 @@ export interface ValidationResult {
   }
 }
 
-// Pre-defined constant - no need to recreate on every validation call
+interface DeckStats {
+  mainDeckCount: number
+  sideboardCount: number
+  cardCounts: Map<string, number>
+}
+
+// Pre-defined constants
 const EXEMPT_LANDS = new Set([
   'Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes',
   'Snow-Covered Plains', 'Snow-Covered Island', 'Snow-Covered Swamp',
   'Snow-Covered Mountain', 'Snow-Covered Forest', 'Snow-Covered Wastes'
 ])
 
-// Validation messages
-const VALIDATION_MESSAGES = {
-  mainDeckTooSmall: (count: number) => ({
-    type: 'error' as const,
-    message: `Main deck deve contenere almeno 60 carte (attuale: ${count})`
-  }),
-  mainDeckTooLarge: (count: number) => ({
-    type: 'warning' as const,
-    message: `Main deck contiene più di 60 carte (attuale: ${count}).`
-  }),
-  sideboardTooSmall: (count: number) => ({
-    type: 'warning' as const,
-    message: `La Sideboard può contenere fino a 15 carte (attuale: ${count})`
-  }),
-  sideboardTooLarge: (count: number) => ({
-    type: 'error' as const,
-    message: `La Sideboard non può contenere più di 15 carte (attuale: ${count})`
-  }),
-  tooManyCopies: (cardName: string, count: number) => ({
-    type: 'error' as const,
-    message: `"${cardName}" supera il limite di 4 copie (attuale: ${count})`
-  })
+const DECK_RULES = {
+  MIN_MAIN_DECK: 60,
+  OPTIMAL_MAIN_DECK: 60,
+  MAX_SIDEBOARD: 15,
+  OPTIMAL_SIDEBOARD: 15,
+  MAX_COPIES: 4
+} as const
+
+// Validation messages factory
+const createError = (message: string): ValidationError => ({ type: 'error', message })
+const createWarning = (message: string): ValidationError => ({ type: 'warning', message })
+
+const MESSAGES = {
+  mainDeckTooSmall: (count: number) =>
+    createError(`Main deck deve contenere almeno ${DECK_RULES.MIN_MAIN_DECK} carte (attuale: ${count})`),
+  mainDeckTooLarge: (count: number) =>
+    createWarning(`Main deck contiene più di ${DECK_RULES.OPTIMAL_MAIN_DECK} carte (attuale: ${count}).`),
+  sideboardTooSmall: (count: number) =>
+    createWarning(`La Sideboard può contenere fino a ${DECK_RULES.MAX_SIDEBOARD} carte (attuale: ${count})`),
+  sideboardTooLarge: (count: number) =>
+    createError(`La Sideboard non può contenere più di ${DECK_RULES.MAX_SIDEBOARD} carte (attuale: ${count})`),
+  tooManyCopies: (cardName: string, count: number) =>
+    createError(`"${cardName}" supera il limite di ${DECK_RULES.MAX_COPIES} copie (attuale: ${count})`)
+} as const
+
+/**
+ * Analyze deck composition in a single pass
+ */
+function analyzeDeck(cards: readonly ParsedCard[]): DeckStats {
+  let mainDeckCount = 0
+  let sideboardCount = 0
+  const cardCounts = new Map<string, number>()
+
+  for (const card of cards) {
+    // Count cards by location
+    if (card.isSideboard) {
+      sideboardCount += card.quantity
+    } else {
+      mainDeckCount += card.quantity
+    }
+
+    // Track non-exempt cards for copy limit validation
+    if (!EXEMPT_LANDS.has(card.name)) {
+      cardCounts.set(card.name, (cardCounts.get(card.name) || 0) + card.quantity)
+    }
+  }
+
+  return { mainDeckCount, sideboardCount, cardCounts }
+}
+
+/**
+ * Validate card copy limits
+ */
+function validateCopyLimits(cardCounts: Map<string, number>, errors: ValidationError[]): void {
+  for (const [cardName, count] of cardCounts) {
+    if (count > DECK_RULES.MAX_COPIES) {
+      errors.push(MESSAGES.tooManyCopies(cardName, count))
+    }
+  }
+}
+
+/**
+ * Validate main deck size requirements
+ */
+function validateMainDeckSize(count: number, errors: ValidationError[], warnings: ValidationError[]): void {
+  if (count < DECK_RULES.MIN_MAIN_DECK) {
+    errors.push(MESSAGES.mainDeckTooSmall(count))
+  } else if (count > DECK_RULES.OPTIMAL_MAIN_DECK) {
+    warnings.push(MESSAGES.mainDeckTooLarge(count))
+  }
+}
+
+/**
+ * Validate sideboard size requirements
+ */
+function validateSideboardSize(count: number, errors: ValidationError[], warnings: ValidationError[]): void {
+  if (count === 0 || count === DECK_RULES.OPTIMAL_SIDEBOARD) return
+
+  if (count < DECK_RULES.OPTIMAL_SIDEBOARD) {
+    warnings.push(MESSAGES.sideboardTooSmall(count))
+  } else {
+    errors.push(MESSAGES.sideboardTooLarge(count))
+  }
 }
 
 /**
@@ -59,49 +126,13 @@ export function validatePauperDeck(cards: readonly ParsedCard[]): ValidationResu
   const errors: ValidationError[] = []
   const warnings: ValidationError[] = []
 
-  let mainDeckCount = 0
-  let sideboardCount = 0
-  const cardCounts = new Map<string, number>()
+  // Analyze deck composition
+  const { mainDeckCount, sideboardCount, cardCounts } = analyzeDeck(cards)
 
-  // Single pass: count cards, validate copies, separate deck/sideboard
-  for (const card of cards) {
-    // Update deck/sideboard counts
-    if (card.isSideboard) {
-      sideboardCount += card.quantity
-    } else {
-      mainDeckCount += card.quantity
-    }
-
-    // Rule 4: No more than 4 copies (skip exempt lands)
-    if (EXEMPT_LANDS.has(card.name)) continue
-
-    const currentCount = (cardCounts.get(card.name) || 0) + card.quantity
-
-    if (currentCount > 4) {
-      errors.push(VALIDATION_MESSAGES.tooManyCopies(card.name, currentCount))
-    }
-
-    cardCounts.set(card.name, currentCount)
-  }
-
-  // Rule 1: Main deck must be at least 60 cards
-  if (mainDeckCount < 60) {
-    errors.push(VALIDATION_MESSAGES.mainDeckTooSmall(mainDeckCount))
-  }
-
-  // Rule 2: Main deck should not exceed 60 cards (warning)
-  if (mainDeckCount > 60) {
-    warnings.push(VALIDATION_MESSAGES.mainDeckTooLarge(mainDeckCount))
-  }
-
-  // Rule 3: Sideboard must be exactly 0 or 15 cards
-  if (sideboardCount > 0 && sideboardCount !== 15) {
-    if (sideboardCount < 15) {
-      warnings.push(VALIDATION_MESSAGES.sideboardTooSmall(sideboardCount))
-    } else {
-      errors.push(VALIDATION_MESSAGES.sideboardTooLarge(sideboardCount))
-    }
-  }
+  // Run all validation rules
+  validateCopyLimits(cardCounts, errors)
+  validateMainDeckSize(mainDeckCount, errors, warnings)
+  validateSideboardSize(sideboardCount, errors, warnings)
 
   return {
     isValid: errors.length === 0,
