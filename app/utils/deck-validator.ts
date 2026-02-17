@@ -67,22 +67,28 @@ export function validatePauperDeck(cards: readonly ParsedCard[]): ValidationResu
     }
   }
 
-  // Rule 4: No more than 4 copies of any card (except basic lands)
-  const basicLands = new Set(['Plains', 'Island', 'Swamp', 'Mountain', 'Forest'])
+  // Rule 4: No more than 4 copies of any card (except basic and snow lands)
+  const exemptLands = new Set([
+    'Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes',
+    'Snow-Covered Plains', 'Snow-Covered Island', 'Snow-Covered Swamp',
+    'Snow-Covered Mountain', 'Snow-Covered Forest', 'Snow-Covered Wastes'
+  ])
 
   const cardCounts = new Map<string, number>()
-  for (const card of cards) {
-    const currentCount = cardCounts.get(card.name) || 0
-    cardCounts.set(card.name, currentCount + card.quantity)
-  }
 
-  for (const [cardName, count] of cardCounts) {
-    if (!basicLands.has(cardName) && count > 4) {
+  for (const card of cards) {
+    if (exemptLands.has(card.name)) continue
+
+    const currentCount = (cardCounts.get(card.name) || 0) + card.quantity
+
+    if (currentCount > 4) {
       errors.push({
         type: 'error',
-        message: `"${cardName}" supera il limite di 4 copie (attuale: ${count})`
+        message: `"${card.name}" supera il limite di 4 copie (attuale: ${currentCount})`
       })
     }
+
+    cardCounts.set(card.name, currentCount)
   }
 
   return {
