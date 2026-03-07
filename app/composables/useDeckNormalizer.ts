@@ -6,6 +6,7 @@
 
 import type { ParsedCard, ScryfallCard } from '~/types/deck'
 import type { SuggestionGroup } from '~/types/suggestions'
+import type { PerformanceStats } from '~/shared/types'
 import { createScryfallIndex, normalizeDeckWithIndex, printDeck } from '~/utils/deck-normalizer'
 import { fetchScryfallDataWithConfidence, type FetchResultWithConfidence } from '~/services/scryfall'
 import { getFrontFace } from '~/utils/card-name-normalization'
@@ -13,6 +14,7 @@ import { getFrontFace } from '~/utils/card-name-normalization'
 export function useDeckNormalizer() {
   const scryfallIndex = ref<ReadonlyMap<string, ScryfallCard> | null>(null)
   const nameMapping = ref<Record<string, string>>({}) // Track input → canonical name
+  const performance = ref<PerformanceStats | null>(null) // Performance statistics
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const autoAppliedCount = ref(0)
@@ -26,12 +28,18 @@ export function useDeckNormalizer() {
     isLoading.value = true
     error.value = null
     autoAppliedCount.value = 0
+    performance.value = null
 
     try {
       const result: FetchResultWithConfidence = await fetchScryfallDataWithConfidence(cardNames)
 
       // Store name mappings from server
       nameMapping.value = result.nameMappings || {}
+
+      // Store performance statistics
+      if ('performance' in result) {
+        performance.value = result.performance as PerformanceStats
+      }
 
       // Track how many were auto-applied
       autoAppliedCount.value = result.suggestionGroup.autoApply.length
@@ -110,6 +118,7 @@ export function useDeckNormalizer() {
   function reset() {
     scryfallIndex.value = null
     nameMapping.value = {}
+    performance.value = null
     error.value = null
     autoAppliedCount.value = 0
   }
@@ -118,6 +127,7 @@ export function useDeckNormalizer() {
     isLoading: readonly(isLoading),
     error: readonly(error),
     autoAppliedCount: readonly(autoAppliedCount),
+    performance: readonly(performance),
     fetchAndBuildIndex,
     normalize,
     updateIndexWithSuggestion,

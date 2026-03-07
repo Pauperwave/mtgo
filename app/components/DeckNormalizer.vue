@@ -16,6 +16,7 @@ const {
   isLoading,
   error,
   autoAppliedCount,
+  performance,
   fetchAndBuildIndex,
   normalize,
   updateIndexWithSuggestion,
@@ -256,6 +257,11 @@ function copyToClipboard() {
           <ValidationCard
             v-if="validation"
             :validation="validation"
+          />
+
+          <PerformanceCard
+            v-if="performance"
+            :performance="performance"
           />
 
           <MissingCardsCard

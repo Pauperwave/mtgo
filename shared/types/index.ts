@@ -60,6 +60,17 @@ export interface ResolveCardsRequest {
 }
 
 /**
+ * Performance statistics for card resolution
+ */
+export interface PerformanceStats {
+  totalRequests: number // Total card names requested
+  databaseHits: number // Cards found in local SQLite database
+  scryfallRequests: number // Cards fetched from Scryfall API
+  notFound: number // Cards not found anywhere
+  processingTimeMs: number // Total processing time in milliseconds
+}
+
+/**
  * Response from /api/cards/resolve endpoint
  */
 export interface ResolveCardsResponse {
@@ -67,6 +78,7 @@ export interface ResolveCardsResponse {
   nameMappings: Record<string, string> // input_name -> canonical_name
   missing: string[] // Cards not found in DB or Scryfall
   errors?: string[]
+  performance: PerformanceStats // Performance statistics
 }
 
 /**

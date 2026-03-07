@@ -125,6 +125,8 @@ async function fetchMissingCardsFromScryfall(missingNames: string[]): Promise<Ma
 }
 
 export default defineEventHandler(async (event): Promise<ResolveCardsResponse> => {
+  const startTime = Date.now()
+  
   try {
     // Parse request body
     const body = await readBody<ResolveCardsRequest>(event)
@@ -140,6 +142,10 @@ export default defineEventHandler(async (event): Promise<ResolveCardsResponse> =
     const cards: Card[] = []
     const nameMappings: Record<string, string> = {}
     const missing: string[] = []
+    
+    // Performance tracking
+    let databaseHits = 0
+    let scryfallRequests = 0
 
     // Step 1: Look up all cards in SQLite database (normalized)
     const dbCards = await getCardsByNormalizedNames(inputNames)
@@ -154,6 +160,7 @@ export default defineEventHandler(async (event): Promise<ResolveCardsResponse> =
         // Found in database
         cards.push(card)
         nameMappings[inputName] = card.name
+        databaseHits++
         
         // Track name mapping (increment hit count)
         if (inputName !== card.name) {
@@ -170,6 +177,7 @@ export default defineEventHandler(async (event): Promise<ResolveCardsResponse> =
       console.log(`Fetching ${missingNames.length} missing cards from Scryfall...`)
       
       const scryfallCards = await fetchMissingCardsFromScryfall(missingNames)
+      scryfallRequests = scryfallCards.size
       
       for (const [inputName, card] of scryfallCards.entries()) {
         cards.push(card)
@@ -189,12 +197,21 @@ export default defineEventHandler(async (event): Promise<ResolveCardsResponse> =
       }
     }
 
-    // Return response
+    const processingTimeMs = Date.now() - startTime
+
+    // Return response with performance stats
     return {
       cards,
       nameMappings,
       missing,
-      errors: missing.length > 0 ? [`Could not find ${missing.length} card(s): ${missing.join(', ')}`] : undefined
+      errors: missing.length > 0 ? [`Could not find ${missing.length} card(s): ${missing.join(', ')}`] : undefined,
+      performance: {
+        totalRequests: inputNames.length,
+        databaseHits,
+        scryfallRequests,
+        notFound: missing.length,
+        processingTimeMs
+      }
     }
 
   } catch (error) {

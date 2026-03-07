@@ -15,7 +15,7 @@
 
 import type { ScryfallCard } from '~/types/deck'
 import type { CardSuggestion, SuggestionGroup } from '~/types/suggestions'
-import type { ResolveCardsRequest, ResolveCardsResponse } from '~/shared/types'
+import type { ResolveCardsRequest, ResolveCardsResponse, PerformanceStats } from '~/shared/types'
 
 /**
  * Result from fetching Scryfall data with confidence grouping
@@ -25,6 +25,7 @@ export interface FetchResultWithConfidence {
   suggestionGroup: SuggestionGroup
   totalCards: number
   nameMappings: Record<string, string>
+  performance?: PerformanceStats
 }
 
 /**
@@ -101,7 +102,8 @@ export async function fetchScryfallDataWithConfidence(
         requireConfirmation
       },
       totalCards: exactMatches.length,
-      nameMappings: data.nameMappings
+      nameMappings: data.nameMappings,
+      performance: data.performance
     }
   } catch (error) {
     console.error('Failed to fetch cards from API:', error)
