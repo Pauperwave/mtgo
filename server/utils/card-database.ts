@@ -168,20 +168,29 @@ export async function getNameMapping(inputName: string): Promise<NameMapping | n
 
 /**
  * Upsert name mapping (increment hit count if exists, insert if new)
+ * Gracefully handles readonly database in dev/production environments
  */
 export async function upsertNameMapping(inputName: string, canonicalName: string): Promise<void> {
-  const db = await getDatabase(false) // Need write access
-  const normalizedInput = normalizeCardName(inputName)
-  const normalizedCanonical = normalizeCardName(canonicalName)
-  const now = new Date().toISOString()
-  
-  db.prepare(`
-    INSERT INTO name_mappings (input_name, canonical_name, normalized_input, normalized_canonical, hit_count, first_seen, last_seen)
-    VALUES (?, ?, ?, ?, 1, ?, ?)
-    ON CONFLICT(input_name) DO UPDATE SET
-      hit_count = hit_count + 1,
-      last_seen = ?
-  `).run(inputName, canonicalName, normalizedInput, normalizedCanonical, now, now, now)
+  try {
+    // Try to get writable database connection
+    // In dev mode, the shared readonly connection may prevent writes
+    const db = await getDatabase(false) // Request write access
+    const normalizedInput = normalizeCardName(inputName)
+    const normalizedCanonical = normalizeCardName(canonicalName)
+    const now = new Date().toISOString()
+    
+    db.prepare(`
+      INSERT INTO name_mappings (input_name, canonical_name, normalized_input, normalized_canonical, hit_count, first_seen, last_seen)
+      VALUES (?, ?, ?, ?, 1, ?, ?)
+      ON CONFLICT(input_name) DO UPDATE SET
+        hit_count = hit_count + 1,
+        last_seen = ?
+    `).run(inputName, canonicalName, normalizedInput, normalizedCanonical, now, now, now)
+  } catch (error) {
+    // Silently fail in readonly mode - name mapping tracking is non-critical
+    // The core functionality (card lookups) still works fine
+    console.debug('Name mapping tracking skipped (readonly database):', inputName, '→', canonicalName)
+  }
 }
 
 /**
