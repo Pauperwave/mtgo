@@ -19,18 +19,18 @@ function createCardNameRegex(searchedName: string): RegExp {
 /**
  * Composable for managing card suggestions
  * @param input - Reactive reference to the deck input text
- * @param onApply - Callback when all suggestions are resolved (triggers final normalization)
+ * @param onAllResolved - Optional callback when all suggestions are resolved
  */
 export function useSuggestions(
   input: Ref<string>,
-  onApply: () => void
+  onAllResolved?: () => void
 ) {
   const suggestions = ref<CardSuggestion[]>([])
 
   /**
    * Apply a single suggestion to the input text
    * Replaces all occurrences of the searched name with the suggested card name
-   * Triggers normalization when no suggestions remain
+   * Triggers callback when no suggestions remain
    */
   function applySuggestion(suggestion: CardSuggestion) {
     const { searchedName, suggestedCard } = suggestion
@@ -42,8 +42,8 @@ export function useSuggestions(
 
     removeSuggestion(searchedName)
 
-    if (suggestions.value.length === 0) {
-      onApply()
+    if (suggestions.value.length === 0 && onAllResolved) {
+      onAllResolved()
     }
   }
 
@@ -68,8 +68,8 @@ export function useSuggestions(
     const appliedNames = new Set(suggestionsToApply.map(s => s.searchedName))
     suggestions.value = suggestions.value.filter(s => !appliedNames.has(s.searchedName))
 
-    if (suggestions.value.length === 0) {
-      onApply()
+    if (suggestions.value.length === 0 && onAllResolved) {
+      onAllResolved()
     }
   }
 

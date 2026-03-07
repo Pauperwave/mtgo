@@ -31,7 +31,7 @@ const toast = useToast()
 // Suggestions
 // ============================================
 
-const suggestions = useSuggestions(input, handleFinalizeDeck)
+const suggestions = useSuggestions(input)
 
 // ============================================
 // Normalization
@@ -89,6 +89,10 @@ async function handleNormalize() {
     // If no manual suggestions remain, finalize immediately
     if (suggestionGroup.requireConfirmation.length === 0) {
       handleFinalizeDeck()
+    } else {
+      // Generate initial output even with pending suggestions
+      // This allows inline updates when suggestions are applied
+      handleFinalizeDeck()
     }
   } catch (err) {
     console.error('Errore di normalizzazione:', err)
@@ -125,9 +129,27 @@ function handleAcceptSuggestion(suggestion: CardSuggestion) {
   // Update the Scryfall index with the accepted card
   updateIndexWithSuggestion(suggestion.suggestedCard)
 
+  // If we already have an output, update it inline instead of regenerating
+  if (normalizedOutput.value) {
+    // Replace the searched name with the suggested canonical name in the output
+    const searchPattern = new RegExp(
+      `^(\\d+)\\s+${escapeRegExp(suggestion.searchedName)}$`,
+      'gm'
+    )
+    const replacement = `$1 ${suggestion.suggestedCard.name}`
+    normalizedOutput.value = normalizedOutput.value.replace(searchPattern, replacement)
+  }
+
   // Apply the suggestion to the input text
   // This will trigger handleFinalizeDeck when all suggestions are resolved
   suggestions.applySuggestion(suggestion)
+}
+
+/**
+ * Escape special regex characters in a string
+ */
+function escapeRegExp(string: string): string {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 /**
@@ -135,11 +157,7 @@ function handleAcceptSuggestion(suggestion: CardSuggestion) {
  */
 function handleRejectSuggestion(searchedName: string) {
   suggestions.dismissSuggestion(searchedName)
-
-  // If all suggestions are resolved, finalize
-  if (suggestions.suggestions.value.length === 0) {
-    handleFinalizeDeck()
-  }
+  // Note: Output is not regenerated - it stays as is with the original name
 }
 
 // ============================================
