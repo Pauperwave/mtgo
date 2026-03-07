@@ -10,10 +10,13 @@
  * 4. Return all cards + name mappings + missing list
  */
 
-import type { ResolveCardsRequest, ResolveCardsResponse, Card, ScryfallCard } from '../../../shared/types'
+import type { ResolveCardsRequest, ResolveCardsResponse, Card, ScryfallCard, FuzzySuggestion } from '../../../shared/types'
 import { 
   getCardsByNormalizedNames, 
-  upsertNameMapping 
+  upsertNameMapping,
+  findCardsByFuzzyName,
+  normalizeCardName,
+  levenshteinDistance
 } from '../../utils/card-database'
 
 /**
@@ -197,6 +200,68 @@ export default defineEventHandler(async (event): Promise<ResolveCardsResponse> =
       }
     }
 
+    // Step 4: Perform fuzzy search for missing cards using Scryfall
+    const fuzzySuggestions: FuzzySuggestion[] = []
+    let scryfallFuzzyRequests = 0
+    if (missing.length > 0) {
+      console.log(`Performing fuzzy search for ${missing.length} missing ${missing.length === 1 ? 'card' : 'cards'}...`)
+      
+      for (const missingName of missing) {
+        const suggestions: Array<{ card: Card, distance: number, similarity: number }> = []
+        
+        // Try Scryfall's fuzzy search first (best match)
+        try {
+          const scryfallUrl = `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(missingName)}`
+          const response = await fetch(scryfallUrl)
+          scryfallFuzzyRequests++ // Track fuzzy API calls
+          
+          if (response.ok) {
+            const scryfallCard = await response.json() as ScryfallCard
+            const card = scryfallToCard(scryfallCard)
+            
+            // Calculate distance for display
+            const normalized = normalizeCardName(missingName)
+            const cardNormalized = normalizeCardName(card.name)
+            const distance = levenshteinDistance(normalized, cardNormalized)
+            const maxLength = Math.max(normalized.length, cardNormalized.length)
+            const similarity = 1 - (distance / maxLength)
+            
+            suggestions.push({ card, distance, similarity })
+            console.log(`  ✓ Scryfall fuzzy: "${missingName}" → "${card.name}" (similarity: ${similarity.toFixed(2)})`)
+          }
+        } catch (error) {
+          console.warn(`  ✗ Scryfall fuzzy search failed for "${missingName}":`, error)
+        }
+        
+        // Supplement with local database fuzzy search (skip if we already have 5+ suggestions)
+        if (suggestions.length < 5) {
+          const localMatches = await findCardsByFuzzyName(missingName, 5 - suggestions.length, 0.6)
+          
+          // Filter out duplicates (cards already in suggestions)
+          const existingIds = new Set(suggestions.map(s => s.card.id))
+          for (const match of localMatches) {
+            if (!existingIds.has(match.card.id)) {
+              suggestions.push({
+                card: match.card,
+                distance: match.distance,
+                similarity: match.similarity
+              })
+            }
+          }
+        }
+        
+        if (suggestions.length > 0) {
+          console.log(`  ✓ Total: ${suggestions.length} ${suggestions.length === 1 ? 'suggestion' : 'suggestions'} for "${missingName}": ${suggestions.map(s => s.card.name).join(', ')}`)
+          fuzzySuggestions.push({
+            searchedName: missingName,
+            suggestions
+          })
+        } else {
+          console.warn(`  ✗ No fuzzy matches found for "${missingName}"`)
+        }
+      }
+    }
+
     const processingTimeMs = Date.now() - startTime
 
     // Return response with performance stats
@@ -204,11 +269,13 @@ export default defineEventHandler(async (event): Promise<ResolveCardsResponse> =
       cards,
       nameMappings,
       missing,
+      fuzzySuggestions,
       errors: missing.length > 0 ? [`Could not find ${missing.length} card(s): ${missing.join(', ')}`] : undefined,
       performance: {
         totalRequests: inputNames.length,
         databaseHits,
         scryfallRequests,
+        scryfallFuzzyRequests: scryfallFuzzyRequests > 0 ? scryfallFuzzyRequests : undefined,
         notFound: missing.length,
         processingTimeMs
       }

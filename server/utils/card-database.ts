@@ -63,7 +63,7 @@ function getFrontFace(name: string): string {
  * Normalize card name for case/diacritic-insensitive lookups
  * Same logic as app/utils/card-name-normalization.ts but server-side
  */
-function normalizeCardName(name: string): string {
+export function normalizeCardName(name: string): string {
   return getFrontFace(name)
     .toLowerCase()
     .normalize('NFD') // Decompose diacritics
@@ -244,4 +244,130 @@ export async function isDatabaseInitialized(): Promise<boolean> {
   } catch {
     return false
   }
+}
+
+/**
+ * Calculate Levenshtein distance between two strings
+ * Used for fuzzy card name matching
+ */
+export function levenshteinDistance(str1: string, str2: string): number {
+  const m = str1.length
+  const n = str2.length
+  const dp: number[][] = []
+  
+  for (let i = 0; i <= n; i++) {
+    dp[i] = []
+    dp[i]![0] = i
+  }
+  
+  for (let j = 0; j <= m; j++) {
+    dp[0]![j] = j
+  }
+  
+  for (let i = 1; i <= n; i++) {
+    for (let j = 1; j <= m; j++) {
+      if (str2[i - 1] === str1[j - 1]) {
+        dp[i]![j] = dp[i - 1]![j - 1]!
+      } else {
+        dp[i]![j] = 1 + Math.min(
+          dp[i - 1]![j]!,
+          dp[i]![j - 1]!,
+          dp[i - 1]![j - 1]!
+        )
+      }
+    }
+  }
+  
+  return dp[n]![m]!
+}
+
+/**
+ * Calculate word overlap score between two strings
+ * Returns the ratio of matching words (0-1)
+ * Used as a tiebreaker for fuzzy matching when similarity is equal
+ */
+function calculateWordOverlap(str1: string, str2: string): number {
+  const words1 = str1.toLowerCase().split(/\s+/)
+  const words2 = str2.toLowerCase().split(/\s+/)
+  
+  let matchingWords = 0
+  for (const word1 of words1) {
+    if (words2.some(word2 => word2.startsWith(word1) || word1.startsWith(word2))) {
+      matchingWords++
+    }
+  }
+  
+  return matchingWords / Math.max(words1.length, words2.length)
+}
+
+/**
+ * Fuzzy match result with similarity score
+ */
+export interface FuzzyMatch {
+  card: Card
+  distance: number
+  similarity: number
+}
+
+/**
+ * Find cards using fuzzy name matching
+ * Returns top N matches sorted by similarity (best first)
+ * 
+ * @param inputName - The misspelled or partial card name
+ * @param maxResults - Maximum number of results to return (default 5)
+ * @param minSimilarity - Minimum similarity threshold 0-1 (default 0.6)
+ * @returns Array of fuzzy matches sorted by similarity
+ */
+export async function findCardsByFuzzyName(
+  inputName: string,
+  maxResults = 5,
+  minSimilarity = 0.6
+): Promise<FuzzyMatch[]> {
+  const db = await getDatabase()
+  const normalized = normalizeCardName(inputName)
+  
+  // Get all cards from database
+  // For better performance with large datasets, we could add LIKE pre-filtering
+  const allCards = db.prepare(`SELECT * FROM cards`).all() as Card[]
+  
+  const matches: FuzzyMatch[] = []
+  
+  for (const card of allCards) {
+    const cardNormalized = normalizeCardName(card.name)
+    const distance = levenshteinDistance(normalized, cardNormalized)
+    const maxLength = Math.max(normalized.length, cardNormalized.length)
+    const similarity = 1 - (distance / maxLength)
+    
+    // Only include results above similarity threshold
+    if (similarity >= minSimilarity) {
+      matches.push({ card, distance, similarity })
+    }
+  }
+  
+  // Sort by:
+  // 1. Similarity (best first)
+  // 2. Word overlap (more matching words first)
+  // 3. Distance (closest first)
+  // 4. Alphabetically (as last resort)
+  matches.sort((a, b) => {
+    // Primary: similarity
+    const simDiff = b.similarity - a.similarity
+    if (Math.abs(simDiff) > 0.001) return simDiff
+    
+    // Secondary: word overlap (prefer cards sharing words with search term)
+    const overlapA = calculateWordOverlap(normalized, normalizeCardName(a.card.name))
+    const overlapB = calculateWordOverlap(normalized, normalizeCardName(b.card.name))
+    const overlapDiff = overlapB - overlapA
+    if (Math.abs(overlapDiff) > 0.001) return overlapDiff
+    
+    // Tertiary: distance
+    const distDiff = a.distance - b.distance
+    if (distDiff !== 0) return distDiff
+    
+    // Last resort: alphabetical
+    return a.card.name.localeCompare(b.card.name)
+  })
+  
+  // Return top N results
+  return matches.slice(0, maxResults)
 }

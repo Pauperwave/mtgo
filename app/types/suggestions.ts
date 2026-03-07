@@ -21,6 +21,8 @@ export interface CardSuggestion {
   matchType: MatchType
   /** Levenshtein edit distance (optional, for display) */
   normalizedDistance?: number
+  /** Similarity score 0-1 (optional, for display) */
+  similarity?: number
 }
 
 /**

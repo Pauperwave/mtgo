@@ -65,9 +65,22 @@ export interface ResolveCardsRequest {
 export interface PerformanceStats {
   totalRequests: number // Total card names requested
   databaseHits: number // Cards found in local SQLite database
-  scryfallRequests: number // Cards fetched from Scryfall API
+  scryfallRequests: number // Cards fetched from Scryfall Collection API (exact match)
+  scryfallFuzzyRequests?: number // Cards fuzzy searched via Scryfall Named API
   notFound: number // Cards not found anywhere
   processingTimeMs: number // Total processing time in milliseconds
+}
+
+/**
+ * Fuzzy match suggestion for a missing card
+ */
+export interface FuzzySuggestion {
+  searchedName: string // The original search term
+  suggestions: Array<{
+    card: Card // The suggested card
+    distance: number // Levenshtein distance
+    similarity: number // Similarity score (0-1)
+  }>
 }
 
 /**
@@ -77,6 +90,7 @@ export interface ResolveCardsResponse {
   cards: Card[]
   nameMappings: Record<string, string> // input_name -> canonical_name
   missing: string[] // Cards not found in DB or Scryfall
+  fuzzySuggestions?: FuzzySuggestion[] // Fuzzy matches for missing cards
   errors?: string[]
   performance: PerformanceStats // Performance statistics
 }

@@ -15,7 +15,8 @@
 
 import type { ScryfallCard } from '~/types/deck'
 import type { CardSuggestion, SuggestionGroup } from '~/types/suggestions'
-import type { ResolveCardsRequest, ResolveCardsResponse, PerformanceStats } from '~/shared/types'
+import type { ResolveCardsRequest, ResolveCardsResponse, PerformanceStats, Card } from '~/shared/types'
+import { analyzeMatch } from '~/utils/suggestion-scorer'
 
 /**
  * Result from fetching Scryfall data with confidence grouping
@@ -80,25 +81,36 @@ export async function fetchScryfallDataWithConfidence(
     // Convert to ScryfallCard format for compatibility
     const exactMatches = data.cards.map(cardToScryfallCard)
 
-    // Create suggestions for missing cards
-    const requireConfirmation: CardSuggestion[] = data.missing.map((name: string) => ({
-      searchedName: name,
-      suggestedCard: {
-        name: name,
-        type_line: 'Unknown',
-        cmc: 0,
-        mana_cost: null,
-        oracle_text: null,
-        color_identity: []
-      },
-      confidence: 'low' as const,
-      matchType: 'ambiguous' as const
-    }))
+    // Convert fuzzy suggestions to CardSuggestion format
+    const requireConfirmation: CardSuggestion[] = []
+    
+    for (const fuzzySuggestion of data.fuzzySuggestions || []) {
+      // For each missing card, create suggestions from fuzzy matches
+      for (const match of fuzzySuggestion.suggestions) {
+        const scryfallCard = cardToScryfallCard(match.card)
+        
+        // Analyze the match to determine confidence level
+        const analysis = analyzeMatch(
+          fuzzySuggestion.searchedName,
+          scryfallCard,
+          fuzzySuggestion.suggestions.length
+        )
+        
+        requireConfirmation.push({
+          searchedName: fuzzySuggestion.searchedName,
+          suggestedCard: scryfallCard,
+          confidence: analysis.confidence,
+          matchType: analysis.matchType,
+          normalizedDistance: match.distance,
+          similarity: match.similarity
+        })
+      }
+    }
 
     return {
       exactMatches,
       suggestionGroup: {
-        autoApply: [], // No fuzzy matching needed - we have exact normalized lookups
+        autoApply: [], // No auto-apply for fuzzy matches - user must confirm
         requireConfirmation
       },
       totalCards: exactMatches.length,
