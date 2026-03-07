@@ -9,8 +9,8 @@
     "postinstall": "nuxt prepare",
     "lint": "eslint .",
     "typecheck": "nuxt typecheck",
-    "clean": "rimraf .nuxt .output dist node_modules/.cache",
-    "clean:all": "rimraf .nuxt .output dist node_modules/.cache node_modules"
+    "clean": "nuxt cleanup",
+    "clean:all": "nuxt cleanup && rimraf node_modules"
   },
   "dependencies": {
     "@iconify-json/lucide": "^1.2.82",
