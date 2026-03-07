@@ -59,7 +59,7 @@ function getConfidenceIcon(confidence: CardSuggestion['confidence']) {
 
     <div class="space-y-3">
       <p class="text-sm text-muted">
-        {{ suggestions.length > 1 ? 'Le seguenti carte non sono state riconosciute' : 'La seguente carta non è stata riconosciuta' }} esattamente, ma {{ suggestions.length > 1 ? 'sono state trovate corrispondenze' : 'è stata trovata una corrispondenza' }} simili.
+        {{ suggestions.length > 1 ? 'Le seguenti carte non sono state riconosciute' : 'La seguente carta non è stata riconosciuta' }} esattamente, ma {{ suggestions.length > 1 ? 'sono state trovate corrispondenze' : 'è stata trovata una corrispondenza' }} simile.
         Vuoi applicare {{ suggestions.length > 1 ? 'le correzioni' : 'la correzione' }}?
       </p>
 
@@ -92,7 +92,7 @@ function getConfidenceIcon(confidence: CardSuggestion['confidence']) {
             <div class="flex items-center gap-2 ml-6 flex-wrap">
               <UBadge
                 :color="getConfidenceColor(suggestion.confidence)"
-                size="xs"
+                size="sm"
                 variant="soft"
               >
                 <template #leading>
@@ -106,7 +106,7 @@ function getConfidenceIcon(confidence: CardSuggestion['confidence']) {
 
               <UBadge
                 color="neutral"
-                size="xs"
+                size="sm"
                 variant="outline"
               >
                 {{ getMatchTypeLabel(suggestion.matchType) }}
@@ -121,7 +121,10 @@ function getConfidenceIcon(confidence: CardSuggestion['confidence']) {
             </div>
 
             <!-- Card type (optional) -->
-            <p class="text-xs text-muted ml-6 truncate">
+            <p 
+              v-if="suggestion.suggestedCard.type_line !== 'Unknown'"
+              class="text-xs text-muted ml-6 truncate"
+            >
               {{ suggestion.suggestedCard.type_line }}
             </p>
 
