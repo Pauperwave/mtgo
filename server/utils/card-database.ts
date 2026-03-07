@@ -5,7 +5,7 @@
  */
 
 import { join } from 'path'
-import type { Card, NameMapping } from '~/shared/types'
+import type { Card, NameMapping } from '../../shared/types'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type DatabaseInstance = any

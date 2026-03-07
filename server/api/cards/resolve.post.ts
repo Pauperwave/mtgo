@@ -10,11 +10,11 @@
  * 4. Return all cards + name mappings + missing list
  */
 
-import type { ResolveCardsRequest, ResolveCardsResponse, Card, ScryfallCard } from '~/shared/types'
+import type { ResolveCardsRequest, ResolveCardsResponse, Card, ScryfallCard } from '../../../shared/types'
 import { 
   getCardsByNormalizedNames, 
   upsertNameMapping 
-} from '~/server/utils/card-database'
+} from '../../utils/card-database'
 
 /**
  * Scryfall Collection API endpoint (batch lookup)
