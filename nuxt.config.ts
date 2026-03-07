@@ -47,5 +47,12 @@ export default defineNuxtConfig({
         braceStyle: '1tbs'
       }
     }
+  },
+
+  nitro: {
+    // Mark better-sqlite3 as external - don't bundle it
+    externals: {
+      external: ['better-sqlite3']
+    }
   }
 })
