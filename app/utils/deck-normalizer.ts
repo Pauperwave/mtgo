@@ -166,6 +166,7 @@ export function normalizeDeckWithIndex(
 
     normalized.push({
       ...card,
+      name: scryfall.name, // Use canonical name from Scryfall (with diacritics and // for DFCs)
       section,
       cmc: scryfall.cmc,
       mana_cost: scryfall.mana_cost ?? null,
