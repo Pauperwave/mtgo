@@ -1,7 +1,7 @@
-<!-- app\components\DeckNormalizer.vue -->
+<!-- app/components/DeckNormalizer.vue -->
 <script setup lang="ts">
 import { useClipboard } from '@vueuse/core'
-import { shouldAutoApply } from '~/utils/card-autocorrect-whitelist'
+import type { CardSuggestion } from '~/types/suggestions'
 
 // ============================================
 // State
@@ -12,9 +12,25 @@ const normalizedOutput = ref('')
 const missingCards = ref<string[]>([])
 const validation = ref<ValidationResult | null>(null)
 
-const { isLoading, error, fetchAndBuildIndex, normalize } = useDeckNormalizer()
+const {
+  isLoading,
+  error,
+  autoAppliedCount,
+  fetchAndBuildIndex,
+  normalize,
+  updateIndexWithSuggestion,
+  clearError,
+  reset: resetNormalizer
+} = useDeckNormalizer()
+
 const { copy, copied } = useClipboard()
 const toast = useToast()
+
+// ============================================
+// Suggestions
+// ============================================
+
+const suggestions = useSuggestions(input, handleFinalizeDeck)
 
 // ============================================
 // Normalization
@@ -28,6 +44,7 @@ async function handleNormalize() {
   normalizedOutput.value = ''
   validation.value = null
   suggestions.clearSuggestions()
+  clearError()
 
   try {
     const parsed = parseRawDeck(input.value)
@@ -36,45 +53,28 @@ async function handleNormalize() {
       throw new Error('Nessuna carta trovata nell\'input')
     }
 
-    // Validate deck
+    // Validate deck structure
     validation.value = validatePauperDeck(parsed)
 
-    const cardNames = parsed.map(c => c.name)
-    const fetchedSuggestions = await fetchAndBuildIndex(cardNames)
+    // Extract unique card names
+    const cardNames = Array.from(new Set(parsed.map(c => c.name)))
 
-    // ✨ Separate auto-apply and manual suggestions
-    const autoApplySuggestions = fetchedSuggestions.filter(s =>
-      shouldAutoApply(s.searchedName, s.suggestedCard.name)
-    )
+    // Fetch Scryfall data with confidence-based grouping
+    const suggestionGroup = await fetchAndBuildIndex(cardNames)
 
-    const manualSuggestions = fetchedSuggestions.filter(s =>
-      !shouldAutoApply(s.searchedName, s.suggestedCard.name)
-    )
+    // Auto-apply high-confidence suggestions and store manual ones
+    suggestions.setSuggestionsFromGroup(suggestionGroup)
 
-    // Auto-apply whitelisted cards (batch operation - no re-normalization)
-    if (autoApplySuggestions.length > 0) {
-      console.log('Auto-applying whitelisted suggestions:', autoApplySuggestions)
-
-      // Apply all suggestions at once without triggering re-normalization
-      let updatedInput = input.value
-      autoApplySuggestions.forEach((suggestion) => {
-        const searchedNameEscaped = suggestion.searchedName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-        updatedInput = updatedInput.replace(
-          new RegExp(`(\\d+\\s+)${searchedNameEscaped}`, 'gi'),
-          `$1${suggestion.suggestedCard.name}`
-        )
-      })
-
-      // Update input once
-      input.value = updatedInput
-
-      const cardList = autoApplySuggestions
+    // Show toast for auto-applied corrections
+    if (autoAppliedCount.value > 0) {
+      const autoApplied = suggestionGroup.autoApply
+      const cardList = autoApplied
         .map(s => `• ${s.searchedName} → ${s.suggestedCard.name}`)
         .join('\n')
 
       toast.add({
         title: 'Correzioni automatiche applicate',
-        description: `${autoApplySuggestions.length} ${autoApplySuggestions.length === 1 ? 'carta corretta' : 'carte corrette'}:\n${cardList}`,
+        description: `${autoAppliedCount.value} ${autoAppliedCount.value === 1 ? 'carta corretta' : 'carte corrette'}:\n${cardList}`,
         icon: 'i-lucide-sparkles',
         color: 'primary',
         duration: 6000,
@@ -83,19 +83,12 @@ async function handleNormalize() {
           root: 'min-w-96'
         }
       })
-
-      // Wait for input to update
-      await nextTick()
     }
 
-    // Show manual suggestions for review
-    if (manualSuggestions.length > 0) {
-      suggestions.setSuggestions(manualSuggestions)
+    // If no manual suggestions remain, finalize immediately
+    if (suggestionGroup.requireConfirmation.length === 0) {
+      handleFinalizeDeck()
     }
-
-    // Normalize with updated input
-    const finalParsed = parseRawDeck(input.value)
-    normalizedOutput.value = normalize(finalParsed)
   } catch (err) {
     console.error('Errore di normalizzazione:', err)
 
@@ -108,11 +101,45 @@ async function handleNormalize() {
   }
 }
 
-// ============================================
-// Suggestions
-// ============================================
+/**
+ * Finalize deck normalization after all suggestions are resolved
+ * Called automatically when no manual suggestions remain
+ */
+function handleFinalizeDeck() {
+  try {
+    // Re-parse the (now corrected) deck input
+    const finalParsed = parseRawDeck(input.value)
 
-const suggestions = useSuggestions(input, handleNormalize)
+    // Normalize using the cached Scryfall index
+    normalizedOutput.value = normalize(finalParsed)
+  } catch (err) {
+    console.error('Failed to generate normalized output:', err)
+  }
+}
+
+/**
+ * Handle user accepting a manual suggestion
+ */
+function handleAcceptSuggestion(suggestion: CardSuggestion) {
+  // Update the Scryfall index with the accepted card
+  updateIndexWithSuggestion(suggestion.suggestedCard)
+
+  // Apply the suggestion to the input text
+  // This will trigger handleFinalizeDeck when all suggestions are resolved
+  suggestions.applySuggestion(suggestion)
+}
+
+/**
+ * Handle user rejecting a manual suggestion
+ */
+function handleRejectSuggestion(searchedName: string) {
+  suggestions.dismissSuggestion(searchedName)
+
+  // If all suggestions are resolved, finalize
+  if (suggestions.suggestions.value.length === 0) {
+    handleFinalizeDeck()
+  }
+}
 
 // ============================================
 // Checklist
@@ -135,6 +162,7 @@ watch(input, (newValue) => {
     missingCards.value = []
     validation.value = null
     suggestions.clearSuggestions()
+    resetNormalizer()
   }
 })
 
@@ -210,6 +238,15 @@ function copyToClipboard() {
 
         <!-- Right Column: Output -->
         <div class="space-y-4">
+          <!-- Auto-apply feedback -->
+          <UAlert
+            v-if="autoAppliedCount > 0 && !normalizedOutput"
+            color="primary"
+            icon="i-lucide-sparkles"
+            title="Correzioni automatiche applicate"
+            :description="`${autoAppliedCount} ${autoAppliedCount === 1 ? 'nome carta corretto' : 'nomi carta corretti'} automaticamente`"
+          />
+
           <ErrorCard
             v-if="error"
             :message="errorMessage"
@@ -229,8 +266,8 @@ function copyToClipboard() {
           <SuggestionsCard
             v-if="suggestions.suggestions.value.length > 0"
             :suggestions="suggestions.suggestions.value"
-            @apply="suggestions.applySuggestion"
-            @dismiss="suggestions.dismissSuggestion"
+            @apply="handleAcceptSuggestion"
+            @dismiss="handleRejectSuggestion"
           />
 
           <OutputCard

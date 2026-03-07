@@ -1,48 +1,50 @@
-// app\composables\useDeckNormalizer.ts
+// app/composables/useDeckNormalizer.ts
 /**
  * Composable for deck normalization
  * Manages Scryfall index and provides normalized deck output
  */
 
 import type { ParsedCard, ScryfallCard } from '~/types/deck'
+import type { SuggestionGroup } from '~/types/suggestions'
 import { createScryfallIndex, normalizeDeckWithIndex, printDeck } from '~/utils/deck-normalizer'
-import { fetchScryfallData, type FetchResult } from '~/services/scryfall'
-
-export interface CardSuggestion {
-  searchedName: string
-  suggestedCard: ScryfallCard
-}
+import { fetchScryfallDataWithConfidence, type FetchResultWithConfidence } from '~/services/scryfall'
+import { getFrontFace } from '~/utils/card-name-normalization'
 
 export function useDeckNormalizer() {
   const scryfallIndex = ref<ReadonlyMap<string, ScryfallCard> | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
-  const suggestions = ref<CardSuggestion[]>([])
+  const autoAppliedCount = ref(0)
 
   /**
    * Fetch Scryfall data and build the index
-   * Returns suggestions for cards that needed fuzzy matching
+   * Returns suggestions grouped by confidence level
+   * Auto-apply suggestions are already included in the index
    */
-  async function fetchAndBuildIndex(cardNames: string[]): Promise<CardSuggestion[]> {
+  async function fetchAndBuildIndex(cardNames: string[]): Promise<SuggestionGroup> {
     isLoading.value = true
     error.value = null
-    suggestions.value = []
+    autoAppliedCount.value = 0
 
     try {
-      const result: FetchResult = await fetchScryfallData(cardNames)
+      const result: FetchResultWithConfidence = await fetchScryfallDataWithConfidence(cardNames)
 
-      // Store suggestions
-      suggestions.value = result.suggestions
+      // Track how many were auto-applied
+      autoAppliedCount.value = result.suggestionGroup.autoApply.length
 
-      // Build index with all cards (exact matches + fuzzy matches)
+      // Build index with all cards:
+      // - Exact matches from Scryfall
+      // - Auto-applied suggestions (high confidence)
+      // - Manual suggestions (for user to review)
       const allCards = [
-        ...result.cards,
-        ...result.suggestions.map(s => s.suggestedCard)
+        ...result.exactMatches,
+        ...result.suggestionGroup.autoApply.map(s => s.suggestedCard),
+        ...result.suggestionGroup.requireConfirmation.map(s => s.suggestedCard)
       ]
 
       scryfallIndex.value = createScryfallIndex(allCards)
 
-      return result.suggestions
+      return result.suggestionGroup
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to fetch card data'
       throw err
@@ -79,6 +81,19 @@ export function useDeckNormalizer() {
   }
 
   /**
+   * Update the index with a corrected card name
+   * Used when user accepts a manual suggestion
+   */
+  function updateIndexWithSuggestion(suggestedCard: ScryfallCard) {
+    if (!scryfallIndex.value) return
+
+    const newMap = new Map(scryfallIndex.value)
+    newMap.set(getFrontFace(suggestedCard.name), suggestedCard)
+
+    scryfallIndex.value = newMap
+  }
+
+  /**
    * Clear the error message
    */
   function clearError() {
@@ -86,19 +101,22 @@ export function useDeckNormalizer() {
   }
 
   /**
-   * Clear suggestions
+   * Reset all state
    */
-  function clearSuggestions() {
-    suggestions.value = []
+  function reset() {
+    scryfallIndex.value = null
+    error.value = null
+    autoAppliedCount.value = 0
   }
 
   return {
     isLoading: readonly(isLoading),
     error: readonly(error),
-    suggestions: readonly(suggestions),
+    autoAppliedCount: readonly(autoAppliedCount),
     fetchAndBuildIndex,
     normalize,
+    updateIndexWithSuggestion,
     clearError,
-    clearSuggestions
+    reset
   }
 }

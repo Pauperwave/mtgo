@@ -1,189 +1,145 @@
-// app\services\scryfall.ts
+// app/services/scryfall.ts
 /**
- * Scryfall API integration
- * Handles fetching card data with batching and rate limiting
+ * Scryfall API Service
+ * Handles fetching card data from Scryfall with intelligent fallback and rate limiting
+ *
+ * Flow for each card:
+ * 1. Try exact match (case-sensitive)
+ * 2. If not found, search with fuzzy matching
+ * 3. Analyze results and categorize by confidence
  */
 
 import type { ScryfallCard } from '~/types/deck'
+import type { CardSuggestion, SuggestionGroup } from '~/types/suggestions'
+import { processSuggestions } from '~/utils/suggestion-scorer'
 
 /**
- * Normalize card name for Scryfall lookup
- * Removes the back face of split/adventure/MDFC cards
+ * Result from fetching Scryfall data with confidence grouping
  */
-function normalizeCardNameForLookup(name: string): string {
-  const frontFace = name.split('//')[0]
-  return frontFace ? frontFace.trim() : name.trim()
+export interface FetchResultWithConfidence {
+  exactMatches: ScryfallCard[]
+  suggestionGroup: SuggestionGroup
+  totalCards: number
 }
 
 /**
- * Result from fetching card data
- * Includes both found cards and suggestions for missing ones
+ * Fetch card data from Scryfall with confidence-based suggestion grouping
+ *
+ * For each card name:
+ * 1. First tries exact match API
+ * 2. Falls back to search API if no exact match
+ * 3. Processes results with confidence scoring
+ *
+ * @param cardNames - Array of card names to fetch
+ * @returns Object with exact matches and categorized suggestions
  */
-export interface FetchResult {
-  cards: ScryfallCard[]
-  suggestions: Array<{
-    searchedName: string
-    suggestedCard: ScryfallCard
-  }>
+export async function fetchScryfallDataWithConfidence(
+  cardNames: string[]
+): Promise<FetchResultWithConfidence> {
+  const exactMatches: ScryfallCard[] = []
+  const allAutoApply: CardSuggestion[] = []
+  const allRequireConfirmation: CardSuggestion[] = []
+
+  // Deduplicate card names to avoid redundant API calls
+  const uniqueNames = Array.from(new Set(cardNames))
+
+  for (const cardName of uniqueNames) {
+    try {
+      // Step 1: Try exact match first (most reliable)
+      const exactCard = await fetchExactCard(cardName)
+
+      if (exactCard) {
+        exactMatches.push(exactCard)
+        continue
+      }
+
+      // Step 2: If no exact match, try fuzzy search
+      const suggestionGroup = await searchCardWithConfidence(cardName)
+
+      allAutoApply.push(...suggestionGroup.autoApply)
+      allRequireConfirmation.push(...suggestionGroup.requireConfirmation)
+
+      // Scryfall rate limit: 50-100 requests per second
+      // We use 100ms delay to be safe
+      await delay(100)
+    } catch (err) {
+      console.error(`Failed to fetch card: ${cardName}`, err)
+      // Continue processing other cards even if one fails
+    }
+  }
+
+  return {
+    exactMatches,
+    suggestionGroup: {
+      autoApply: allAutoApply,
+      requireConfirmation: allRequireConfirmation
+    },
+    totalCards: exactMatches.length + allAutoApply.length + allRequireConfirmation.length
+  }
 }
 
 /**
- * Fetch a single card by fuzzy name
- * This handles case-insensitive and typo-tolerant matching
+ * Fetch a card by exact name match from Scryfall
+ * Uses the /cards/named?exact endpoint for case-sensitive exact matching
+ *
+ * @param cardName - The exact card name to look up
+ * @returns Card data if found, null otherwise
  */
-async function fetchSingleCard(cardName: string): Promise<ScryfallCard | null> {
+async function fetchExactCard(cardName: string): Promise<ScryfallCard | null> {
   try {
-    const searchName = normalizeCardNameForLookup(cardName)
-
-    // Use fuzzy match (it handles case-insensitivity and typos)
-    const fuzzyResponse = await fetch(
-      `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(searchName)}`
+    const response = await fetch(
+      `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cardName)}`
     )
 
-    if (fuzzyResponse.ok) {
-      const card = await fuzzyResponse.json()
-      return {
-        name: card.name,
-        type_line: card.type_line,
-        cmc: card.cmc,
-        mana_cost: card.mana_cost ?? null,
-        oracle_text: card.oracle_text ?? '',
-        color_identity: card.color_identity ?? []
-      }
+    if (!response.ok) {
+      return null
     }
 
-    return null
+    return await response.json()
   } catch {
     return null
   }
 }
 
 /**
- * Fetch card data from Scryfall API
- * Returns both found cards and fuzzy match suggestions for missing cards
+ * Search for a card using Scryfall's search API
+ * Returns confidence-categorized suggestions for non-exact matches
+ *
+ * @param cardName - Card name to search for
+ * @returns Grouped suggestions (auto-apply and require confirmation)
  */
-export async function fetchScryfallData(cardNames: string[]): Promise<FetchResult> {
-  const uniqueNames = [...new Set(cardNames)]
-  const allCards: ScryfallCard[] = []
+async function searchCardWithConfidence(cardName: string): Promise<SuggestionGroup> {
+  try {
+    const response = await fetch(
+      `https://api.scryfall.com/cards/search?q=${encodeURIComponent(cardName)}&unique=cards`
+    )
 
-  // Map to track which original names we've found cards for (exact match from collection)
-  const foundExactMatch = new Set<string>()
-
-  // Scryfall collection endpoint accepts max 75 cards per request
-  const BATCH_SIZE = 75
-
-  for (let i = 0; i < uniqueNames.length; i += BATCH_SIZE) {
-    const batch = uniqueNames.slice(i, i + BATCH_SIZE)
-    // Normalize names for lookup (remove back faces)
-    const identifiers = batch.map(name => ({
-      name: normalizeCardNameForLookup(name)
-    }))
-
-    try {
-      const response = await fetch('https://api.scryfall.com/cards/collection', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ identifiers })
-      })
-
-      if (!response.ok) {
-        throw new Error(`Scryfall API error: ${response.status}`)
-      }
-
-      const data = await response.json()
-
-      // Add all found cards
-      for (const card of data.data) {
-        allCards.push({
-          name: card.name,
-          type_line: card.type_line,
-          cmc: card.cmc,
-          mana_cost: card.mana_cost ?? null,
-          oracle_text: card.oracle_text ?? '',
-          color_identity: card.color_identity ?? []
-        })
-
-        // Mark original names as found IF they match exactly (case-sensitive)
-        for (const originalName of batch) {
-          const normalized = normalizeCardNameForLookup(originalName)
-          if (normalized === card.name) {
-            foundExactMatch.add(originalName)
-          }
-        }
-      }
-
-      // Scryfall rate limit: ~100ms between requests
-      if (i + BATCH_SIZE < uniqueNames.length) {
-        await new Promise(resolve => setTimeout(resolve, 100))
-      }
-    } catch (err) {
-      throw new Error(
-        `Failed to fetch Scryfall data: ${err instanceof Error ? err.message : err}`
-      )
-    }
-  }
-
-  console.log('Found exact matches:', Array.from(foundExactMatch))
-  console.log('Unique names:', uniqueNames)
-
-  // Find cards that weren't found in the batch requests
-  const notFoundNames = uniqueNames.filter(name => !foundExactMatch.has(name))
-
-  console.log('Not found (need fuzzy search):', notFoundNames)
-
-  // Try to fetch cards that weren't found using fuzzy search
-  const suggestions: Array<{
-    searchedName: string
-    suggestedCard: ScryfallCard
-  }> = []
-
-  const stillNotFound: string[] = []
-
-  if (notFoundNames.length > 0) {
-    for (const cardName of notFoundNames) {
-      console.log(`Fuzzy searching for: "${cardName}"`)
-      const card = await fetchSingleCard(cardName)
-
-      if (card) {
-        console.log(`Found fuzzy match: "${cardName}" -> "${card.name}"`)
-
-        // Always add as suggestion if the names don't match exactly (character by character)
-        if (cardName !== card.name) {
-          console.log(`Adding as suggestion (names differ)`)
-          suggestions.push({
-            searchedName: cardName,
-            suggestedCard: card
-          })
-        } else {
-          console.log(`Adding directly (same name)`)
-          allCards.push(card)
-        }
-      } else {
-        console.log(`No fuzzy match found for: "${cardName}"`)
-        stillNotFound.push(cardName)
-      }
-
-      // Rate limiting
-      await new Promise(resolve => setTimeout(resolve, 100))
+    // Handle HTTP errors gracefully
+    if (!response.ok) {
+      return { autoApply: [], requireConfirmation: [] }
     }
 
-    // If still some cards weren't found, throw error
-    if (stillNotFound.length > 0) {
-      const cardLabel = stillNotFound.length > 1 ? 'Le seguenti carte non sono state trovate' : 'La seguente carta non è stata trovata'
-      const cardList = stillNotFound.map(name => `• ${name}`).join('\n')
-
-      throw new Error(
-        `${cardLabel} su Scryfall:\n\n${cardList}\n\nVerifica l'ortografia o prova a usare il nome esatto della carta da Scryfall.`
-      )
+    // Check content type - Scryfall returns HTML when rate limited
+    const contentType = response.headers.get('content-type')
+    if (!contentType || !contentType.includes('application/json')) {
+      console.warn('Scryfall returned non-JSON response (possibly rate limited)')
+      return { autoApply: [], requireConfirmation: [] }
     }
-  }
 
-  console.log('Final suggestions:', suggestions)
+    const searchResults = await response.json()
 
-  return {
-    cards: allCards,
-    suggestions
+    // Process results with confidence scoring
+    return processSuggestions(cardName, searchResults)
+  } catch (error) {
+    console.error('Scryfall search failed:', error)
+    return { autoApply: [], requireConfirmation: [] }
   }
+}
+
+/**
+ * Utility delay function for rate limiting
+ * Creates a promise that resolves after specified milliseconds
+ */
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
 }
