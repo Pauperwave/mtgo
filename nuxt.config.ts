@@ -29,6 +29,17 @@ export default defineNuxtConfig({
 
   compatibilityDate: '2025-01-15',
 
+  icon: {
+    serverBundle: {
+      collections: ['lucide', 'simple-icons']
+    },
+    clientBundle: {
+      scan: true
+    },
+    // Avoid external Iconify fetches
+    fallbackToApi: false
+  },
+
   eslint: {
     config: {
       stylistic: {
