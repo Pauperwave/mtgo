@@ -15,8 +15,9 @@ let dbInstance: DatabaseInstance | null = null
 /**
  * Get database instance - uses bun:sqlite in Bun runtime, better-sqlite3 otherwise
  * Database is opened in readonly mode for production, readwrite for import scripts
+ * Returns null if database cannot be initialized (e.g., in serverless environment)
  */
-export async function getDatabase(readonly = true): Promise<DatabaseInstance> {
+export async function getDatabase(readonly = true): Promise<DatabaseInstance | null> {
   if (!dbInstance) {
     const dbPath = join(process.cwd(), 'server', 'database', 'cards.db')
     
@@ -31,11 +32,17 @@ export async function getDatabase(readonly = true): Promise<DatabaseInstance> {
       } else {
         throw new Error('Not Bun runtime')
       }
-    } catch {
-      // Fallback to better-sqlite3 for Node.js (build time)
-      const Database = (await import('better-sqlite3')).default
-      dbInstance = new Database(dbPath, { readonly })
-      console.log('⚠️ Using better-sqlite3 (Node.js compatibility fallback)')
+    } catch (error) {
+      // Try better-sqlite3 for Node.js (build time)
+      try {
+        const Database = (await import('better-sqlite3')).default
+        dbInstance = new Database(dbPath, { readonly })
+        console.log('⚠️ Using better-sqlite3 (Node.js compatibility fallback)')
+      } catch (sqliteError) {
+        // SQLite unavailable (e.g., serverless environment without native modules)
+        console.warn('⚠️ SQLite database unavailable - running in Scryfall-only mode')
+        return null
+      }
     }
   }
   return dbInstance
@@ -78,6 +85,7 @@ export function normalizeCardName(name: string): string {
  */
 export async function getCardByName(name: string): Promise<Card | null> {
   const db = await getDatabase()
+  if (!db) return null
   
   const row = db.prepare(`
     SELECT * FROM cards WHERE name = ? LIMIT 1
@@ -91,6 +99,8 @@ export async function getCardByName(name: string): Promise<Card | null> {
  */
 export async function getCardByNormalizedName(inputName: string): Promise<Card | null> {
   const db = await getDatabase()
+  if (!db) return null
+  
   const normalized = normalizeCardName(inputName)
   
   const row = db.prepare(`
@@ -106,10 +116,11 @@ export async function getCardByNormalizedName(inputName: string): Promise<Card |
  * Get multiple cards by exact names
  */
 export async function getCardsByNames(names: string[]): Promise<Map<string, Card>> {
-  const db = await getDatabase()
   const result = new Map<string, Card>()
-  
   if (names.length === 0) return result
+  
+  const db = await getDatabase()
+  if (!db) return result
   
   const placeholders = names.map(() => '?').join(',')
   const query = `SELECT * FROM cards WHERE name IN (${placeholders})`
@@ -127,10 +138,11 @@ export async function getCardsByNames(names: string[]): Promise<Map<string, Card
  * Returns map of input_name -> Card
  */
 export async function getCardsByNormalizedNames(inputNames: string[]): Promise<Map<string, Card>> {
-  const db = await getDatabase()
   const result = new Map<string, Card>()
-  
   if (inputNames.length === 0) return result
+  
+  const db = await getDatabase()
+  if (!db) return result
   
   // Create map of normalized -> original input
   const normalizedMap = new Map<string, string>()
@@ -159,6 +171,7 @@ export async function getCardsByNormalizedNames(inputNames: string[]): Promise<M
  */
 export async function getNameMapping(inputName: string): Promise<NameMapping | null> {
   const db = await getDatabase()
+  if (!db) return null
   
   const row = db.prepare(`
     SELECT * FROM name_mappings WHERE input_name = ? LIMIT 1
@@ -176,6 +189,11 @@ export async function upsertNameMapping(inputName: string, canonicalName: string
     // Try to get writable database connection
     // In dev mode, the shared readonly connection may prevent writes
     const db = await getDatabase(false) // Request write access
+    if (!db) {
+      console.debug('Name mapping tracking skipped (database unavailable):', inputName, '→', canonicalName)
+      return
+    }
+    
     const normalizedInput = normalizeCardName(inputName)
     const normalizedCanonical = normalizeCardName(canonicalName)
     const now = new Date().toISOString()
@@ -199,6 +217,7 @@ export async function upsertNameMapping(inputName: string, canonicalName: string
  */
 export async function getMetadata(key: string): Promise<string | null> {
   const db = await getDatabase()
+  if (!db) return null
   
   const row = db.prepare(`
     SELECT value FROM metadata WHERE key = ? LIMIT 1
@@ -212,6 +231,10 @@ export async function getMetadata(key: string): Promise<string | null> {
  */
 export async function setMetadata(key: string, value: string): Promise<void> {
   const db = await getDatabase(false) // Need write access
+  if (!db) {
+    console.debug('Metadata update skipped (database unavailable):', key)
+    return
+  }
   
   db.prepare(`
     INSERT INTO metadata (key, value)
@@ -225,6 +248,7 @@ export async function setMetadata(key: string, value: string): Promise<void> {
  */
 export async function getPauperCardsCount(): Promise<number> {
   const db = await getDatabase()
+  if (!db) return 0
   
   const row = db.prepare(`
     SELECT COUNT(*) as count FROM cards
@@ -312,6 +336,7 @@ export interface FuzzyMatch {
 /**
  * Find cards using fuzzy name matching
  * Returns top N matches sorted by similarity (best first)
+ * Returns empty array if database is unavailable
  * 
  * @param inputName - The misspelled or partial card name
  * @param maxResults - Maximum number of results to return (default 5)
@@ -324,6 +349,8 @@ export async function findCardsByFuzzyName(
   minSimilarity = 0.6
 ): Promise<FuzzyMatch[]> {
   const db = await getDatabase()
+  if (!db) return []
+  
   const normalized = normalizeCardName(inputName)
   
   // Get all cards from database
