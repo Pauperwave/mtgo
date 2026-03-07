@@ -15,10 +15,12 @@
     "@iconify-json/lucide": "^1.2.82",
     "@iconify-json/simple-icons": "^1.2.63",
     "@nuxt/ui": "^4.3.0",
+    "better-sqlite3": "^12.6.2",
     "nuxt": "^4.2.2"
   },
   "devDependencies": {
     "@nuxt/eslint": "^1.12.1",
+    "@types/better-sqlite3": "^7.6.13",
     "eslint": "^9.39.2",
     "rimraf": "^6.0.1",
     "typescript": "^5.9.3",
