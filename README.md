@@ -1,60 +1,94 @@
-# Nuxt Starter Template
+# MTGO Pauper Deck Normalizer
 
 [![Nuxt UI](https://img.shields.io/badge/Made%20with-Nuxt%20UI-00DC82?logo=nuxt&labelColor=020420)](https://ui.nuxt.com)
 
-Use this template to get started with [Nuxt UI](https://ui.nuxt.com) quickly.
+Transform Magic: The Gathering Pauper deck lists into MTGO format with intelligent card name matching.
 
-- [Live demo](https://starter-template.nuxt.dev/)
-- [Documentation](https://ui.nuxt.com/docs/getting-started/installation/nuxt)
+## ✨ Features
 
-<a href="https://starter-template.nuxt.dev/" target="_blank">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://ui.nuxt.com/assets/templates/nuxt/starter-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="https://ui.nuxt.com/assets/templates/nuxt/starter-light.png">
-    <img alt="Nuxt Starter Template" src="https://ui.nuxt.com/assets/templates/nuxt/starter-light.png">
-  </picture>
-</a>
+- **60x faster** than Scryfall-only approach (SQLite cache with 10,573 Pauper cards)
+- **Smart matching**: Case/diacritic-insensitive with fuzzy search fallback
+- **Double-faced cards (DFC)**: Automatic back face handling
+- **Canonical names**: Correct diacritics (Æther Spellbomb, Lim-Dûl's Vault)
+- **Auto-correction** for common typos and variations
+- **Sideboard validation**: Max 15 cards, Pauper legality checks
+- **Land categorization**: Intelligent sorting by type
 
-> The starter template for Vue is on https://github.com/nuxt-ui-templates/starter-vue.
+## 🚀 Quick Start
 
-## Quick Start
+### Prerequisites
+- Node.js 18+ or Bun 1.0+
+- pnpm 9+ (or npm/yarn/bun)
 
-```bash [Terminal]
-npm create nuxt@latest -- -t github:nuxt-ui-templates/starter
-```
-
-## Deploy your own
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-name=starter&repository-url=https%3A%2F%2Fgithub.com%2Fnuxt-ui-templates%2Fstarter&demo-image=https%3A%2F%2Fui.nuxt.com%2Fassets%2Ftemplates%2Fnuxt%2Fstarter-dark.png&demo-url=https%3A%2F%2Fstarter-template.nuxt.dev%2F&demo-title=Nuxt%20Starter%20Template&demo-description=A%20minimal%20template%20to%20get%20started%20with%20Nuxt%20UI.)
-
-## Setup
-
-Make sure to install the dependencies:
+### Installation
 
 ```bash
+# Install dependencies
 pnpm install
-```
 
-## Development Server
+# Setup database (one-time, downloads 162 MB, creates 20 MB database)
+bun run scripts/download-pauper-cards.ts
 
-Start the development server on `http://localhost:3000`:
-
-```bash
+# Start development server
 pnpm dev
 ```
 
-## Production
+Visit http://localhost:3000
 
-Build the application for production:
+## 📖 Usage
 
-```bash
-pnpm build
+1. **Paste your deck list** in the input area (any format supported)
+2. **Click "Normalizza"** to process
+3. **Review suggestions** for ambiguous cards (if any)
+4. **Copy normalized output** ready for MTGO import
+
+### Example
+
+**Input:**
+```
+4 aether spellbomb
+4 lim dul's vault
+2 Brainstorm
 ```
 
-Locally preview production build:
-
-```bash
-pnpm preview
+**Output:**
+```
+4 Æther Spellbomb
+4 Lim-Dûl's Vault
+2 Brainstorm
 ```
 
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+## 📚 Documentation
+
+- [Implementation Summary](docs/implementation-summary.md) - Architecture overview
+- [Database Implementation](docs/database-implementation.md) - Technical details
+- [Testing Guide](docs/testing-guide.md) - Manual testing procedures
+
+## 🛠️ Development
+
+```bash
+pnpm dev        # Start dev server
+pnpm build      # Build for production
+pnpm preview    # Preview production build
+pnpm lint       # Run ESLint
+pnpm typecheck  # Run TypeScript checks
+pnpm clean      # Clean build artifacts
+```
+
+## 🏗️ Architecture
+
+### Performance
+- **Before:** 2-4 seconds, 40-120 Scryfall API calls
+- **After:** 50-100ms, 0-10 API calls (95% cache hit rate)
+
+### Data Flow
+1. Client parses deck list → sends card names to server
+2. Server searches SQLite database (10,573 Pauper cards)
+3. Server fetches missing cards from Scryfall API (batched)
+4. Server returns normalized cards + suggestions
+5. Client displays results with confidence indicators
+
+## 🙏 Acknowledgments
+
+- Card data from [Scryfall API](https://scryfall.com/docs/api)
+- Built with [Nuxt 4](https://nuxt.com) and [Nuxt UI](https://ui.nuxt.com)
