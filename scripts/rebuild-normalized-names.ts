@@ -33,14 +33,14 @@ async function rebuildNormalizedNames() {
   const db = new Database(DB_PATH)
 
   // Get all cards
-  const cards = db.prepare('SELECT id, name FROM cards').all() as Array<{ id: string; name: string }>
+  const cards = db.prepare('SELECT id, name FROM cards').all() as Array<{ id: string, name: string }>
 
   console.log(`📊 Found ${cards.length} cards\n`)
 
   // Update normalized names
   const update = db.prepare('UPDATE cards SET name_normalized = ? WHERE id = ?')
 
-  const updateMany = db.transaction((cards: Array<{ id: string; name: string }>) => {
+  const updateMany = db.transaction((cards: Array<{ id: string, name: string }>) => {
     for (const card of cards) {
       const normalized = normalizeCardName(card.name)
       update.run(normalized, card.id)
@@ -52,13 +52,13 @@ async function rebuildNormalizedNames() {
 
   // Show some examples
   console.log('\n✅ Updated! Sample normalized names:\n')
-  
+
   const samples = db.prepare(`
     SELECT name, name_normalized FROM cards 
     WHERE name LIKE '%//%'
     ORDER BY RANDOM()
     LIMIT 5
-  `).all() as Array<{ name: string; name_normalized: string }>
+  `).all() as Array<{ name: string, name_normalized: string }>
 
   for (const sample of samples) {
     console.log(`   "${sample.name}"`)
@@ -66,7 +66,7 @@ async function rebuildNormalizedNames() {
   }
 
   db.close()
-  
+
   console.log('✨ Done!')
 }
 
