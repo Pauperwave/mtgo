@@ -320,7 +320,6 @@ async function main() {
     console.log('   3. The database will be committed to git (tracked)')
     console.log('   4. The temp file is gitignored (not tracked)')
     console.log('\n🚀 Run your app with: bun run dev')
-
   } catch (error) {
     console.error('❌ Error:', error)
     process.exit(1)
