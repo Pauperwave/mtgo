@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "typecheck": "nuxt typecheck",
     "clean": "nuxt cleanup",
-    "clean:all": "nuxt cleanup && rimraf node_modules"
+    "clean:all": "nuxt cleanup"
   },
   "dependencies": {
     "@iconify-json/lucide": "^1.2.82",
