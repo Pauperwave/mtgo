@@ -51,11 +51,19 @@ export function closeDatabase(): void {
 }
 
 /**
+ * Get the front face of a double-faced card (DFC)
+ * e.g., "Delver of Secrets // Insectile Aberration" -> "Delver of Secrets"
+ */
+function getFrontFace(name: string): string {
+  return name.split('//')[0]?.trim() || name.trim()
+}
+
+/**
  * Normalize card name for case/diacritic-insensitive lookups
  * Same logic as app/utils/card-name-normalization.ts but server-side
  */
 function normalizeCardName(name: string): string {
-  return name
+  return getFrontFace(name)
     .toLowerCase()
     .normalize('NFD') // Decompose diacritics
     .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
