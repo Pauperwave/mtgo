@@ -13,6 +13,7 @@
 
 import { createWriteStream, existsSync, mkdirSync, statSync } from 'fs'
 import { pipeline } from 'stream/promises'
+// @ts-expect-error - bun:sqlite is available in Bun runtime
 import { Database } from 'bun:sqlite'
 import { readFile } from 'fs/promises'
 

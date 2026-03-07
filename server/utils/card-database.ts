@@ -22,6 +22,7 @@ export async function getDatabase(readonly = true): Promise<DatabaseInstance> {
     
     try {
       // Check if we're running in Bun
+      // @ts-expect-error - Bun global is available in Bun runtime
       if (typeof Bun !== 'undefined') {
         const bunSqliteModuleId = 'bun:sqlite'
         const { Database } = await import(/* @vite-ignore */ bunSqliteModuleId)

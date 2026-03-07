@@ -3,6 +3,7 @@
  * Run with: bun run scripts/rebuild-normalized-names.ts
  */
 
+// @ts-expect-error - bun:sqlite is available in Bun runtime
 import { Database } from 'bun:sqlite'
 
 const DB_PATH = './server/database/cards.db'
