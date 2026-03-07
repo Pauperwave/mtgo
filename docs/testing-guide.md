@@ -20,6 +20,13 @@ All phases (1-3) successfully implemented with bug fixes applied.
 
 **Note:** Name mapping tracking is analytics-only (non-critical). Core functionality (card lookups) works perfectly without it.
 
+### Issue 3: Output Shows User Input Names
+**Issue:** Normalized output showed user input ("delver of secrets") instead of canonical names  
+**Fix:** Use `scryfall.name` in normalized card output  
+**Commit:** `908e0fd`
+
+**Result:** Output now shows full canonical names with diacritics and DFC back faces!
+
 ---
 
 ## 🚀 How to Run
@@ -69,11 +76,11 @@ Sideboard
 
 ✅ **Instant parsing** (<100ms instead of 2-4 seconds)  
 ✅ **All cards found** (no "Missing Scryfall data" errors)  
-✅ **Correct names:**
-- "delver of secrets" → "Delver of Secrets // Insectile Aberration"
-- "Lorien Revealed" → "Lórien Revealed"  
-- "Tithing blade" → "Tithing Blade // Consuming Sepulcher"
-- "The Modern Age" → "The Modern Age // Vector Glider"
+✅ **Canonical card names in output:**
+- Input: "delver of secrets" → Output: **"4 Delver of Secrets // Insectile Aberration"** (full DFC name!)
+- Input: "Lorien Revealed" → Output: **"4 Lórien Revealed"** (with diacritic ó!)
+- Input: "Tithing blade" → Output: **"2 Tithing Blade // Consuming Sepulcher"** (full DFC name!)
+- Input: "The Modern Age" → Output: **"2 The Modern Age // Vector Glider"** (full DFC name!)
 
 ✅ **Proper formatting** (sections, CMC sorting, land categories)
 
