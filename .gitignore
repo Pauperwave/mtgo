@@ -27,3 +27,6 @@ logs
 # Track the actual database but ignore the large temp JSON file
 server/database/oracle-cards.json
 # server/database/cards.db is tracked (committed to git)
+
+# Reference projects (local only, not tracked)
+test/
