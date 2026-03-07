@@ -12,6 +12,7 @@ import { getFrontFace } from '~/utils/card-name-normalization'
 
 export function useDeckNormalizer() {
   const scryfallIndex = ref<ReadonlyMap<string, ScryfallCard> | null>(null)
+  const nameMapping = ref<Record<string, string>>({}) // Track input → canonical name
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const autoAppliedCount = ref(0)
@@ -28,6 +29,9 @@ export function useDeckNormalizer() {
 
     try {
       const result: FetchResultWithConfidence = await fetchScryfallDataWithConfidence(cardNames)
+
+      // Store name mappings from server
+      nameMapping.value = result.nameMappings || {}
 
       // Track how many were auto-applied
       autoAppliedCount.value = result.suggestionGroup.autoApply.length
@@ -62,7 +66,7 @@ export function useDeckNormalizer() {
       throw new Error('Index not built yet. Call fetchAndBuildIndex first.')
     }
 
-    const normalized = normalizeDeckWithIndex(parsed, scryfallIndex.value)
+    const normalized = normalizeDeckWithIndex(parsed, scryfallIndex.value, nameMapping.value)
 
     // Log land categories for visibility when "Normalizza Mazzo" is clicked
     const landRows = normalized
@@ -105,6 +109,7 @@ export function useDeckNormalizer() {
    */
   function reset() {
     scryfallIndex.value = null
+    nameMapping.value = {}
     error.value = null
     autoAppliedCount.value = 0
   }

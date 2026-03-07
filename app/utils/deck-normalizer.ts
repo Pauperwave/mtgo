@@ -136,14 +136,18 @@ export function normalizeDeck(
  */
 export function normalizeDeckWithIndex(
   parsed: readonly ParsedCard[],
-  scryfallIndex: ReadonlyMap<string, ScryfallCard>
+  scryfallIndex: ReadonlyMap<string, ScryfallCard>,
+  nameMapping: Record<string, string> = {}
 ): NormalizedCard[] {
   const missingCards: string[] = []
   const normalized: NormalizedCard[] = []
 
   for (const card of parsed) {
-    // Normalize the card name to front face for lookup
-    const frontFace = getFrontFaceName(card.name)
+    // Try name mapping first (input → canonical name from server)
+    const mappedName = nameMapping[card.name]
+    
+    // Then extract front face for DFC lookups
+    const frontFace = getFrontFaceName(mappedName || card.name)
     const scryfall = scryfallIndex.get(frontFace)
 
     if (!scryfall) {
