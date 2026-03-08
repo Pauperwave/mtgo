@@ -270,11 +270,13 @@ export default defineEventHandler(async (event): Promise<ResolveCardsResponse> =
 
     // Step 4: Perform fuzzy search for missing cards using Scryfall
     const fuzzySuggestions: FuzzySuggestion[] = []
+    const resolvedFromFuzzy = new Set<string>() // Track cards resolved via fuzzy search
     let scryfallFuzzyRequests = 0
     if (missing.length > 0) {
       console.log(`Performing fuzzy search for ${missing.length} missing ${missing.length === 1 ? 'card' : 'cards'}...`)
       
-      for (const missingName of missing) {
+      // Iterate over a copy of the array to avoid modification issues
+      for (const missingName of [...missing]) {
         const suggestions: Array<{ card: Card, distance: number, similarity: number }> = []
         
         // Try Scryfall's fuzzy search first (best match)
@@ -296,6 +298,9 @@ export default defineEventHandler(async (event): Promise<ResolveCardsResponse> =
             
             suggestions.push({ card, distance, similarity })
             console.log(`  ✓ Scryfall fuzzy: "${missingName}" → "${card.name}" (similarity: ${similarity.toFixed(2)})`)
+          } else {
+            // Log non-OK responses for debugging (404 means Scryfall couldn't fuzzy match)
+            console.warn(`  ✗ Scryfall fuzzy API returned ${response.status} ${response.statusText} for "${missingName}"`)
           }
         } catch (error) {
           console.warn(`  ✗ Scryfall fuzzy search failed for "${missingName}":`, error)
@@ -304,6 +309,7 @@ export default defineEventHandler(async (event): Promise<ResolveCardsResponse> =
         // Supplement with local database fuzzy search (skip if we already have 5+ suggestions)
         if (suggestions.length < 5) {
           const localMatches = await findCardsByFuzzyName(missingName, 5 - suggestions.length, 0.6)
+          console.log(`  Database fuzzy search for "${missingName}": found ${localMatches.length} match(es)`)
           
           // Filter out duplicates (cards already in suggestions)
           const existingIds = new Set(suggestions.map(s => s.card.id))
@@ -332,11 +338,8 @@ export default defineEventHandler(async (event): Promise<ResolveCardsResponse> =
               cards.push(bestMatch.card)
               nameMappings[missingName] = bestMatch.card.name
               
-              // Remove from missing array
-              const missingIndex = missing.indexOf(missingName)
-              if (missingIndex > -1) {
-                missing.splice(missingIndex, 1)
-              }
+              // Mark for removal from missing array
+              resolvedFromFuzzy.add(missingName)
               
               // Track as database hit for stats (since it's auto-accepted)
               databaseHits++
@@ -348,10 +351,20 @@ export default defineEventHandler(async (event): Promise<ResolveCardsResponse> =
                 searchedName: missingName,
                 suggestions
               })
+              
+              // Mark for removal from missing array since we have fuzzy suggestions for user to confirm
+              resolvedFromFuzzy.add(missingName)
             }
           }
         } else {
           console.warn(`  ✗ No fuzzy matches found for "${missingName}"`)
+        }
+      }
+      
+      // Remove all resolved cards from missing array (after iteration completes)
+      for (let i = missing.length - 1; i >= 0; i--) {
+        if (resolvedFromFuzzy.has(missing[i])) {
+          missing.splice(i, 1)
         }
       }
     }
