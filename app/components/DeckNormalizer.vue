@@ -240,7 +240,7 @@ function copyToClipboard() {
   <div class="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950">
     <div class="container mx-auto px-4 py-8 max-w-7xl">
       <!-- Header -->
-      <div class="text-center mb-8">
+      <!-- <div class="text-center mb-8">
         <div class="inline-flex items-center gap-3 mb-3">
           <div class="p-3 bg-primary/10 rounded-xl">
             <UIcon
@@ -255,7 +255,7 @@ function copyToClipboard() {
         <p class="text-muted text-lg">
           Trasforma la lista del tuo mazzo in formato MTGO
         </p>
-      </div>
+      </div> -->
 
       <!-- Main Content Grid -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
