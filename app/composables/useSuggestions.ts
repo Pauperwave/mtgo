@@ -110,7 +110,6 @@ export function useSuggestions(
   return {
     suggestions: readonly(suggestions),
     applySuggestion,
-    applyMultipleSuggestions,
     dismissSuggestion,
     setSuggestionsFromGroup,
     clearSuggestions

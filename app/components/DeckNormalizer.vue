@@ -3,7 +3,6 @@
 import { useClipboard } from '@vueuse/core'
 import type { CardSuggestion } from '~/types/suggestions'
 import type { NormalizedCard } from '~/types/deck'
-import { getFrontFace } from '~/utils/card-name-normalization'
 
 // ============================================
 // State
@@ -13,7 +12,6 @@ const input = ref('')
 const normalizedOutput = ref('')
 const pendingCardsForOutput = ref<NormalizedCard[]>([]) // Cards with pending suggestions in output
 const missingCardsForOutput = ref<NormalizedCard[]>([]) // Cards that couldn't be found
-const missingCards = ref<string[]>([]) // Legacy: for error display
 const validation = ref<ValidationResult | null>(null)
 const isPartialOutput = ref(false) // Track if output contains pending/missing cards
 
@@ -49,7 +47,6 @@ async function handleNormalize() {
   if (!input.value.trim()) return
 
   // Reset state
-  missingCards.value = []
   normalizedOutput.value = ''
   validation.value = null
   suggestions.clearSuggestions()
@@ -103,14 +100,7 @@ async function handleNormalize() {
     }
     // Otherwise, show suggestions to user and wait for them to accept/reject
   } catch (err) {
-    console.error('Errore di normalizzazione:', err)
-
-    if (err instanceof Error && err.message.includes('Missing Scryfall data for:')) {
-      const cardsString = err.message.replace('Missing Scryfall data for: ', '')
-      if (cardsString) {
-        missingCards.value = cardsString.split(', ').map(name => name.trim()).filter(Boolean)
-      }
-    }
+    // console.error('Errore di normalizzazione:', err)
   }
 }
 
@@ -162,7 +152,7 @@ function handleFinalizeDeck() {
     // Track if output is partial (has pending suggestions or missing cards)
     isPartialOutput.value = result.pendingCards.length > 0 || result.missingCards.length > 0
   } catch (err) {
-    console.error('Failed to generate normalized output:', err)
+    // console.error('Failed to generate normalized output:', err)
   }
 }
 
@@ -211,7 +201,6 @@ const { checklistItems, completedCount, totalCount } = useChecklist(
 watch(input, (newValue) => {
   if (!newValue.trim()) {
     normalizedOutput.value = ''
-    missingCards.value = []
     validation.value = null
     suggestions.clearSuggestions()
     resetNormalizer()
@@ -237,7 +226,6 @@ const errorLines = computed(() => {
 
 const showEmptyState = computed(() =>
   !normalizedOutput.value
-  && missingCards.value.length === 0
   && suggestions.suggestions.value.length === 0
 )
 
@@ -313,11 +301,6 @@ function copyToClipboard() {
           <PerformanceCard
             v-if="performance"
             :performance="performance"
-          />
-
-          <MissingCardsCard
-            v-if="missingCards.length > 0"
-            :cards="missingCards"
           />
 
           <SuggestionsCard

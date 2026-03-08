@@ -6,7 +6,6 @@
 
 import type { ParsedCard, ScryfallCard, NormalizedCard } from '~/types/deck'
 import type { SuggestionGroup } from '~/types/suggestions'
-import type { PerformanceStats } from '~/shared/types'
 import { createScryfallIndex, normalizeDeckWithIndex, printDeck } from '~/utils/deck-normalizer'
 import { fetchScryfallDataWithConfidence, type FetchResultWithConfidence } from '~/services/scryfall'
 import { getFrontFace } from '~/utils/card-name-normalization'
@@ -91,17 +90,17 @@ export function useDeckNormalizer() {
     )
 
     // Log land categories for visibility when "Normalizza Mazzo" is clicked
-    const landRows = normalized
-      .filter(card => card.section === 'Land')
-      .map(card => ({
-        quantity: card.quantity,
-        name: card.name,
-        category: card.landCategory ?? 'Unknown'
-      }))
+    // const landRows = normalized
+    //   .filter(card => card.section === 'Land')
+    //   .map(card => ({
+    //     quantity: card.quantity,
+    //     name: card.name,
+    //     category: card.landCategory ?? 'Unknown'
+    //   }))
 
-    if (landRows.length) {
-      console.table(landRows)
-    }
+    // if (landRows.length) {
+    //   console.table(landRows)
+    // }
 
     // Separate cards by status
     const pendingCards = normalized.filter(c => c.isPending)

@@ -24,6 +24,7 @@ import {
   categorizeLand,
   landCategoryRank
 } from '~/utils/land-categories'
+import { getFrontFace } from '~/utils/card-name-normalization'
 
 /* -------------------------------------------------
  * Output order
@@ -54,20 +55,6 @@ export const SECTION_LABEL: Record<Section, string> = {
   Enchantment: 'Enchantment',
   Land: 'Lands',
   Sideboard: 'Sideboard'
-}
-
-/* -------------------------------------------------
- * Extract front face name
- * -------------------------------------------------
- * Handles double-faced cards, split cards, and adventure cards
- * "Sagu Wildling // Roost Seek" -> "Sagu Wildling"
- */
-function getFrontFaceName(name: string): string {
-  const frontFace = name.split('//')[0]
-  if (!frontFace) {
-    return name.trim()
-  }
-  return frontFace.trim()
 }
 
 /* -------------------------------------------------
@@ -107,25 +94,11 @@ export function createScryfallIndex(
   
   for (const card of cards) {
     // Index by front face name for DFC cards
-    const frontFace = getFrontFaceName(card.name)
+    const frontFace = getFrontFace(card.name)
     index.set(frontFace, card)
   }
   
   return index
-}
-
-/* -------------------------------------------------
- * Normalize cards using Scryfall data (Array API)
- * -------------------------------------------------
- * Simple API for one-shot use
- * Builds index internally
- */
-export function normalizeDeck(
-  parsed: readonly ParsedCard[],
-  scryfallCards: readonly ScryfallCard[]
-): NormalizedCard[] {
-  const index = createScryfallIndex(scryfallCards)
-  return normalizeDeckWithIndex(parsed, index)
 }
 
 /* -------------------------------------------------
@@ -169,7 +142,7 @@ export function normalizeDeckWithIndex(
     const mappedName = nameMapping[card.name]
     
     // Extract front face for DFC lookups
-    const frontFace = getFrontFaceName(mappedName || card.name)
+    const frontFace = getFrontFace(mappedName || card.name)
     const scryfall = scryfallIndex.get(frontFace)
 
     if (!scryfall) {
