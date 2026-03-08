@@ -105,10 +105,10 @@ async function fetchMissingCardsFromScryfall(missingNames: string[]): Promise<Ma
           const card = scryfallToCard(scryfallCard)
           
           // Find which input name matched this card
-          // Try exact match first, then try matching by front face (for DFC cards)
+          // Use normalized comparison to handle diacritics (û, ö, etc.), hyphens, and apostrophes
           const matchingInputName = batch.find(name => 
-            name.toLowerCase() === scryfallCard.name.toLowerCase() ||
-            (name.includes('//') && getFrontFace(name).toLowerCase() === getFrontFace(scryfallCard.name).toLowerCase())
+            normalizeCardName(name) === normalizeCardName(scryfallCard.name) ||
+            (name.includes('//') && normalizeCardName(getFrontFace(name)) === normalizeCardName(getFrontFace(scryfallCard.name)))
           )
           
           if (matchingInputName) {
@@ -156,9 +156,9 @@ async function fetchMissingCardsFromScryfall(missingNames: string[]): Promise<Ma
               for (const scryfallCard of retryData.data as ScryfallCard[]) {
                 const card = scryfallToCard(scryfallCard)
                 
-                // Match back to original input name
+                // Match back to original input name using normalized comparison
                 const matchingRetry = dfcRetries.find(r => 
-                  r.frontFace.toLowerCase() === getFrontFace(scryfallCard.name).toLowerCase()
+                  normalizeCardName(r.frontFace) === normalizeCardName(getFrontFace(scryfallCard.name))
                 )
                 
                 if (matchingRetry) {
