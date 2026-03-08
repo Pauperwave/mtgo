@@ -41,6 +41,7 @@ useSeoMeta({
           aria-label="GitHub"
           color="neutral"
           variant="ghost"
+          class="cursor-pointer"
         />
       </template>
     </UHeader>
@@ -66,6 +67,7 @@ useSeoMeta({
           aria-label="GitHub"
           color="neutral"
           variant="ghost"
+          class="cursor-pointer"
         />
       </template>
     </UFooter> -->

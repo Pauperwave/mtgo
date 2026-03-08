@@ -60,7 +60,9 @@ const formattedTime = computed(() => {
       <!-- Stats grid -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <!-- Database hits -->
-        <div class="flex flex-col gap-1">
+        <div
+          class="flex flex-col gap-1"
+        >
           <div class="flex items-center gap-2">
             <UIcon
               name="i-lucide-database"
@@ -74,7 +76,9 @@ const formattedTime = computed(() => {
         </div>
 
         <!-- Scryfall requests -->
-        <div class="flex flex-col gap-1">
+        <div
+          class="flex flex-col gap-1"
+        >
           <div class="flex items-center gap-2">
             <UIcon
               name="i-lucide-cloud"
@@ -87,8 +91,28 @@ const formattedTime = computed(() => {
           </p>
         </div>
 
+        <!-- Fuzzy matches -->
+        <div
+          v-if="performance.fuzzyMatches > 0"
+          class="flex flex-col gap-1"
+        >
+          <div class="flex items-center gap-2">
+            <UIcon
+              name="i-lucide-search"
+              class="size-4 text-info"
+            />
+            <span class="text-sm text-muted">Fuzzy</span>
+          </div>
+          <p class="text-2xl font-bold text-info">
+            {{ performance.fuzzyMatches }}
+          </p>
+        </div>
+
         <!-- Not found -->
-        <div class="flex flex-col gap-1">
+        <div
+          v-if="performance.notFound > 0"
+          class="flex flex-col gap-1"
+        >
           <div class="flex items-center gap-2">
             <UIcon
               name="i-lucide-x-circle"
@@ -106,11 +130,11 @@ const formattedTime = computed(() => {
           <div class="flex items-center gap-2">
             <UIcon
               name="i-lucide-timer"
-              class="size-4 text-info"
+              class="size-4 text-purple-500"
             />
             <span class="text-sm text-muted">Tempo</span>
           </div>
-          <p class="text-2xl font-bold text-info">
+          <p class="text-2xl font-bold text-purple-500">
             {{ formattedTime }}
           </p>
         </div>
@@ -132,21 +156,42 @@ const formattedTime = computed(() => {
             :style="{ width: `${(performance.scryfallRequests / performance.totalRequests) * 100}%` }"
           />
           <div
+            v-if="performance.fuzzyMatches > 0"
+            class="bg-info"
+            :style="{ width: `${(performance.fuzzyMatches / performance.totalRequests) * 100}%` }"
+          />
+          <div
             v-if="performance.notFound > 0"
             class="bg-error"
             :style="{ width: `${(performance.notFound / performance.totalRequests) * 100}%` }"
           />
         </div>
         <div class="flex items-center gap-3 text-xs">
-          <div class="flex items-center gap-1">
+          <div
+            v-if="performance.databaseHits > 0"
+            class="flex items-center gap-1"
+          >
             <div class="size-2 rounded-full bg-success" />
             <span class="text-muted">DB Locale</span>
           </div>
-          <div class="flex items-center gap-1">
+          <div
+            v-if="performance.scryfallRequests > 0"
+            class="flex items-center gap-1"
+          >
             <div class="size-2 rounded-full bg-warning" />
             <span class="text-muted">API Scryfall</span>
           </div>
-          <div class="flex items-center gap-1">
+          <div
+            v-if="performance.fuzzyMatches > 0"
+            class="flex items-center gap-1"
+          >
+            <div class="size-2 rounded-full bg-info" />
+            <span class="text-muted">Fuzzy</span>
+          </div>
+          <div
+            v-if="performance.notFound > 0"
+            class="flex items-center gap-1"
+          >
             <div class="size-2 rounded-full bg-error" />
             <span class="text-muted">Non Trovate</span>
           </div>

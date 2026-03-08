@@ -50,6 +50,7 @@ function handleLoadDeck(deckText: string) {
             variant="subtle"
             :disabled="!modelValue.trim()"
             aria-label="Svuota input"
+            class="cursor-pointer"
             @click="emit('update:modelValue', '')"
           />
         </div>
@@ -63,6 +64,7 @@ function handleLoadDeck(deckText: string) {
         block
         :loading="isLoading"
         :disabled="!modelValue.trim()"
+        class="cursor-pointer"
         @click="emit('normalize')"
       >
         {{ isLoading ? 'Normalizzazione in corso...' : 'Normalizza Mazzo' }}

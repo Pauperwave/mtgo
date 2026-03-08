@@ -50,6 +50,7 @@ defineProps<Props>()
               color="error"
               icon="i-lucide-search"
               trailing
+              class="cursor-pointer"
             >
               Cerca
             </UButton>

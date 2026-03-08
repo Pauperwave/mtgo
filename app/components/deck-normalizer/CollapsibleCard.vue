@@ -57,7 +57,7 @@ function toggleCollapse() {
             size="xs"
             variant="ghost"
             color="neutral"
-            class="transition-transform duration-200"
+            class="transition-transform duration-200 cursor-pointer"
             @click.stop="toggleCollapse"
           />
         </div>
@@ -89,7 +89,7 @@ function toggleCollapse() {
               size="xs"
               variant="ghost"
               color="neutral"
-              class="transition-transform duration-200"
+              class="transition-transform duration-200 cursor-pointer"
               @click="toggleCollapse"
             />
           </div>

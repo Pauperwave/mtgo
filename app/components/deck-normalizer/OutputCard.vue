@@ -103,6 +103,7 @@ const styledLines = computed(() => {
         variant="ghost"
         color="success"
         :icon="copied ? 'i-lucide-check' : 'i-lucide-copy'"
+        class="cursor-pointer"
         @click="emit('copy')"
       >
         {{ copied ? 'Copiato!' : 'Copia' }}

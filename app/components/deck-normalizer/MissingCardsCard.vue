@@ -60,6 +60,7 @@ function extractCardName(cardString: string): string {
               color="warning"
               icon="i-lucide-search"
               trailing
+              class="cursor-pointer"
             >
               Cerca
             </UButton>

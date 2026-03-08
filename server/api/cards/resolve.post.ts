@@ -211,6 +211,7 @@ export default defineEventHandler(async (event): Promise<ResolveCardsResponse> =
     // Performance tracking
     let databaseHits = 0
     let scryfallRequests = 0
+    let fuzzyMatches = 0
 
     // Step 1: Look up all cards in SQLite database (normalized)
     const dbCards = await getCardsByNormalizedNames(inputNames)
@@ -352,6 +353,9 @@ export default defineEventHandler(async (event): Promise<ResolveCardsResponse> =
                 suggestions
               })
               
+              // Track as fuzzy match requiring user confirmation
+              fuzzyMatches++
+              
               // Mark for removal from missing array since we have fuzzy suggestions for user to confirm
               resolvedFromFuzzy.add(missingName)
             }
@@ -383,6 +387,7 @@ export default defineEventHandler(async (event): Promise<ResolveCardsResponse> =
         databaseHits,
         scryfallRequests,
         scryfallFuzzyRequests: scryfallFuzzyRequests > 0 ? scryfallFuzzyRequests : undefined,
+        fuzzyMatches,
         notFound: missing.length,
         processingTimeMs
       }

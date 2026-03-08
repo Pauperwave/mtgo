@@ -74,6 +74,7 @@ function handleAcceptAll() {
         variant="ghost"
         color="success"
         icon="i-lucide-check-check"
+        class="cursor-pointer"
         @click="handleAcceptAll"
       >
         Accetta suggerimenti
@@ -189,6 +190,7 @@ function handleAcceptAll() {
                   color="info"
                   variant="solid"
                   icon="i-lucide-check"
+                  class="cursor-pointer"
                   @click="emit('apply', suggestion)"
                 >
                   Applica
@@ -198,6 +200,7 @@ function handleAcceptAll() {
                   color="neutral"
                   variant="ghost"
                   icon="i-lucide-x"
+                  class="cursor-pointer"
                   @click="emit('dismiss', suggestion.searchedName)"
                 >
                   Ignora

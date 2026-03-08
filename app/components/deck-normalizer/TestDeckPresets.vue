@@ -56,8 +56,8 @@ Sideboard
       icon="i-lucide-flask-conical"
       color="neutral"
       variant="outline"
-      size="sm"
-      class="flex-1"
+      block
+      class="flex-1 cursor-pointer"
       @click="emit('load-deck', FUZZY_MATCH_DECK)"
     >
       Test: Fuzzy Match
@@ -66,8 +66,8 @@ Sideboard
       icon="i-lucide-flask-conical"
       color="neutral"
       variant="outline"
-      size="sm"
-      class="flex-1"
+      block
+      class="flex-1 cursor-pointer"
       @click="emit('load-deck', WALLS_COMBO_DECK)"
     >
       Test: Walls Combo

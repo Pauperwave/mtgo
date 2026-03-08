@@ -67,7 +67,8 @@ export interface PerformanceStats {
   databaseHits: number // Cards found in local SQLite database
   scryfallRequests: number // Cards fetched from Scryfall Collection API (exact match)
   scryfallFuzzyRequests?: number // Cards fuzzy searched via Scryfall Named API
-  notFound: number // Cards not found anywhere
+  fuzzyMatches: number // Cards that have fuzzy suggestions requiring user confirmation
+  notFound: number // Cards not found anywhere (no fuzzy suggestions)
   processingTimeMs: number // Total processing time in milliseconds
 }
 
