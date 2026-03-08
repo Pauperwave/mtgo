@@ -58,7 +58,7 @@ const formattedTime = computed(() => {
     <!-- Card body content -->
     <div class="space-y-4">
       <!-- Stats grid -->
-      <div class="grid grid-cols-2 gap-4">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <!-- Database hits -->
         <div class="flex flex-col gap-1">
           <div class="flex items-center gap-2">
@@ -66,7 +66,7 @@ const formattedTime = computed(() => {
               name="i-lucide-database"
               class="size-4 text-success"
             />
-            <span class="text-sm text-muted">Database Locale</span>
+            <span class="text-sm text-muted">Database</span>
           </div>
           <p class="text-2xl font-bold text-success">
             {{ performance.databaseHits }}
@@ -88,10 +88,7 @@ const formattedTime = computed(() => {
         </div>
 
         <!-- Not found -->
-        <div
-          v-if="performance.notFound > 0"
-          class="flex flex-col gap-1"
-        >
+        <div class="flex flex-col gap-1">
           <div class="flex items-center gap-2">
             <UIcon
               name="i-lucide-x-circle"
@@ -149,10 +146,7 @@ const formattedTime = computed(() => {
             <div class="size-2 rounded-full bg-warning" />
             <span class="text-muted">API Scryfall</span>
           </div>
-          <div
-            v-if="performance.notFound > 0"
-            class="flex items-center gap-1"
-          >
+          <div class="flex items-center gap-1">
             <div class="size-2 rounded-full bg-error" />
             <span class="text-muted">Non Trovate</span>
           </div>
