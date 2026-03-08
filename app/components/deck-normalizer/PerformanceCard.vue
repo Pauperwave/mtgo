@@ -7,34 +7,75 @@ interface Props {
 
 const props = defineProps<Props>()
 
-// Calculate cache hit rate percentage
+// Statistiche configurabili
+const stats = computed(() => {
+  const base = [
+    {
+      label: 'Database',
+      value: props.performance.databaseHits,
+      icon: 'i-lucide-database',
+      color: 'success',
+      bgClass: 'bg-success'
+    },
+    {
+      label: 'API Scryfall',
+      value: props.performance.scryfallRequests,
+      icon: 'i-lucide-cloud',
+      color: 'warning',
+      bgClass: 'bg-warning'
+    },
+    {
+      label: 'Fuzzy',
+      value: props.performance.fuzzyMatches,
+      icon: 'i-lucide-search',
+      color: 'info',
+      bgClass: 'bg-info'
+    },
+    {
+      label: 'Non Trovate',
+      value: props.performance.notFound,
+      icon: 'i-lucide-x-circle',
+      color: 'error',
+      bgClass: 'bg-error'
+    }
+  ]
+
+  // Filtra quelli con valore > 0 per la progress bar
+  return base.filter(stat => stat.value > 0)
+})
+
+// Aggiunta del tempo separatamente
+const timeStats = computed(() => ({
+  label: 'Tempo',
+  value: formattedTime.value,
+  icon: 'i-lucide-timer',
+  textClass: 'text-purple-500'
+}))
+
 const cacheHitRate = computed(() => {
   if (props.performance.totalRequests === 0) return 0
   return Math.round((props.performance.databaseHits / props.performance.totalRequests) * 100)
 })
 
-// Determine badge color based on cache hit rate
 const cacheHitColor = computed(() => {
   if (cacheHitRate.value >= 90) return 'success'
   if (cacheHitRate.value >= 70) return 'warning'
   return 'error'
 })
 
-// Format time (ms to seconds if > 1000ms)
 const formattedTime = computed(() => {
   const ms = props.performance.processingTimeMs
-  if (ms >= 1000) {
-    return `${(ms / 1000).toFixed(2)}s`
-  }
-  return `${ms}ms`
+  return ms >= 1000 ? `${(ms / 1000).toFixed(2)}s` : `${ms}ms`
 })
+
+const getPercentage = (value: number) => {
+  if (props.performance.totalRequests === 0) return 0
+  return (value / props.performance.totalRequests) * 100
+}
 </script>
 
 <template>
-  <CollapsibleCard
-    color="neutral"
-    border-class="border-neutral/50"
-  >
+  <CollapsibleCard color="neutral">
     <template #header-icon>
       <UIcon
         name="i-lucide-gauge"
@@ -55,145 +96,86 @@ const formattedTime = computed(() => {
       </UBadge>
     </template>
 
-    <!-- Card body content -->
     <div class="space-y-4">
-      <!-- Stats grid -->
+      <!-- Stats grid - completamente refactored -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <!-- Database hits -->
+        <!-- Stats dinamici -->
         <div
+          v-for="stat in stats"
+          :key="stat.label"
           class="flex flex-col gap-1"
         >
           <div class="flex items-center gap-2">
             <UIcon
-              name="i-lucide-database"
-              class="size-4 text-success"
+              :name="stat.icon"
+              class="size-4"
+              :class="`text-${stat.color}`"
             />
-            <span class="text-sm text-muted">Database</span>
+            <span class="text-sm text-muted">{{ stat.label }}</span>
           </div>
-          <p class="text-2xl font-bold text-success">
-            {{ performance.databaseHits }}
+          <p
+            class="text-2xl font-bold"
+            :class="`text-${stat.color}`"
+          >
+            {{ stat.value }}
           </p>
         </div>
 
-        <!-- Scryfall requests -->
-        <div
-          class="flex flex-col gap-1"
-        >
-          <div class="flex items-center gap-2">
-            <UIcon
-              name="i-lucide-cloud"
-              class="size-4 text-warning"
-            />
-            <span class="text-sm text-muted">API Scryfall</span>
-          </div>
-          <p class="text-2xl font-bold text-warning">
-            {{ performance.scryfallRequests }}
-          </p>
-        </div>
-
-        <!-- Fuzzy matches -->
-        <div
-          v-if="performance.fuzzyMatches > 0"
-          class="flex flex-col gap-1"
-        >
-          <div class="flex items-center gap-2">
-            <UIcon
-              name="i-lucide-search"
-              class="size-4 text-info"
-            />
-            <span class="text-sm text-muted">Fuzzy</span>
-          </div>
-          <p class="text-2xl font-bold text-info">
-            {{ performance.fuzzyMatches }}
-          </p>
-        </div>
-
-        <!-- Not found -->
-        <div
-          v-if="performance.notFound > 0"
-          class="flex flex-col gap-1"
-        >
-          <div class="flex items-center gap-2">
-            <UIcon
-              name="i-lucide-x-circle"
-              class="size-4 text-error"
-            />
-            <span class="text-sm text-muted">Non Trovate</span>
-          </div>
-          <p class="text-2xl font-bold text-error">
-            {{ performance.notFound }}
-          </p>
-        </div>
-
-        <!-- Processing time -->
+        <!-- Tempo processing -->
         <div class="flex flex-col gap-1">
           <div class="flex items-center gap-2">
             <UIcon
-              name="i-lucide-timer"
-              class="size-4 text-purple-500"
+              :name="timeStats.icon"
+              class="size-4"
+              :class="timeStats.textClass"
             />
-            <span class="text-sm text-muted">Tempo</span>
+            <span class="text-sm text-muted">{{ timeStats.label }}</span>
           </div>
-          <p class="text-2xl font-bold text-purple-500">
-            {{ formattedTime }}
+          <p
+            class="text-2xl font-bold"
+            :class="timeStats.textClass"
+          >
+            {{ timeStats.value }}
           </p>
         </div>
       </div>
 
-      <!-- Progress bar showing database vs API split -->
+      <!-- Progress bar con segmenti multipli -->
       <div class="space-y-2">
         <div class="flex items-center justify-between text-xs text-muted">
           <span>Distribuzione Richieste</span>
           <span>{{ performance.totalRequests }} totali</span>
         </div>
-        <div class="flex h-2 overflow-hidden rounded-full bg-neutral/10">
+
+        <!-- Progress bar segmentata -->
+        <div
+          role="progressbar"
+          :aria-valuenow="performance.totalRequests"
+          :aria-valuemax="performance.totalRequests"
+          aria-label="Distribuzione richieste tra database, API e ricerche"
+          class="flex h-2 overflow-hidden rounded-full bg-neutral/10"
+        >
           <div
-            class="bg-success"
-            :style="{ width: `${(performance.databaseHits / performance.totalRequests) * 100}%` }"
-          />
-          <div
-            class="bg-warning"
-            :style="{ width: `${(performance.scryfallRequests / performance.totalRequests) * 100}%` }"
-          />
-          <div
-            v-if="performance.fuzzyMatches > 0"
-            class="bg-info"
-            :style="{ width: `${(performance.fuzzyMatches / performance.totalRequests) * 100}%` }"
-          />
-          <div
-            v-if="performance.notFound > 0"
-            class="bg-error"
-            :style="{ width: `${(performance.notFound / performance.totalRequests) * 100}%` }"
+            v-for="stat in stats"
+            :key="stat.label"
+            :class="stat.bgClass"
+            :style="{ width: `${getPercentage(stat.value)}%` }"
+            :title="`${stat.label}: ${stat.value} (${getPercentage(stat.value).toFixed(1)}%)`"
           />
         </div>
-        <div class="flex items-center gap-3 text-xs">
+
+        <!-- Legenda dinamica -->
+        <div class="flex items-center gap-3 text-xs flex-wrap">
           <div
-            v-if="performance.databaseHits > 0"
+            v-for="stat in stats"
+            :key="stat.label"
             class="flex items-center gap-1"
           >
-            <div class="size-2 rounded-full bg-success" />
-            <span class="text-muted">DB Locale</span>
-          </div>
-          <div
-            v-if="performance.scryfallRequests > 0"
-            class="flex items-center gap-1"
-          >
-            <div class="size-2 rounded-full bg-warning" />
-            <span class="text-muted">API Scryfall</span>
-          </div>
-          <div
-            v-if="performance.fuzzyMatches > 0"
-            class="flex items-center gap-1"
-          >
-            <div class="size-2 rounded-full bg-info" />
-            <span class="text-muted">Fuzzy</span>
-          </div>
-          <div
-            v-if="performance.notFound > 0"
-            class="flex items-center gap-1"
-          >
-            <div class="size-2 rounded-full bg-error" />
-            <span class="text-muted">Non Trovate</span>
+            <div
+              class="size-2 rounded-full"
+              :class="stat.bgClass"
+            />
+            <span class="text-muted">{{ stat.label }}</span>
           </div>
         </div>
       </div>
