@@ -253,16 +253,35 @@ export default defineEventHandler(async (event): Promise<ResolveCardsResponse> =
         if (suggestions.length > 0) {
           console.log(`  ✓ Total: ${suggestions.length} ${suggestions.length === 1 ? 'suggestion' : 'suggestions'} for "${missingName}": ${suggestions.map(s => s.card.name).join(', ')}`)
           
-          // Add name mapping for the best match (first suggestion)
+          // Check if the best match is perfect (auto-accept)
           const bestMatch = suggestions[0]
           if (bestMatch) {
-            nameMappings[missingName] = bestMatch.card.name
+            const isPerfectMatch = bestMatch.distance === 0 && bestMatch.similarity === 1
+            
+            if (isPerfectMatch) {
+              // Auto-accept perfect matches
+              console.log(`  ✓ Perfect match found for "${missingName}" → "${bestMatch.card.name}" (auto-accepting)`)
+              cards.push(bestMatch.card)
+              nameMappings[missingName] = bestMatch.card.name
+              
+              // Remove from missing array
+              const missingIndex = missing.indexOf(missingName)
+              if (missingIndex > -1) {
+                missing.splice(missingIndex, 1)
+              }
+              
+              // Track as database hit for stats (since it's auto-accepted)
+              databaseHits++
+            } else {
+              // Not a perfect match - require user confirmation
+              nameMappings[missingName] = bestMatch.card.name
+              
+              fuzzySuggestions.push({
+                searchedName: missingName,
+                suggestions
+              })
+            }
           }
-          
-          fuzzySuggestions.push({
-            searchedName: missingName,
-            suggestions
-          })
         } else {
           console.warn(`  ✗ No fuzzy matches found for "${missingName}"`)
         }
