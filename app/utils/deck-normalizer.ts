@@ -103,14 +103,15 @@ function sectionFromTypeLine(
 export function createScryfallIndex(
   cards: readonly ScryfallCard[]
 ): ReadonlyMap<string, ScryfallCard> {
-  const map = new Map<string, ScryfallCard>()
-
+  const index = new Map<string, ScryfallCard>()
+  
   for (const card of cards) {
+    // Index by front face name for DFC cards
     const frontFace = getFrontFaceName(card.name)
-    map.set(frontFace, card)
+    index.set(frontFace, card)
   }
-
-  return map
+  
+  return index
 }
 
 /* -------------------------------------------------

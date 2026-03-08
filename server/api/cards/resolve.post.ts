@@ -55,6 +55,13 @@ function scryfallToCard(scryfallCard: ScryfallCard): Card {
 }
 
 /**
+ * Helper to extract front face name from DFC cards
+ */
+function getFrontFace(name: string): string {
+  return name.split('//')[0]?.trim() || name.trim()
+}
+
+/**
  * Fetch missing cards from Scryfall Collection API (batch)
  */
 async function fetchMissingCardsFromScryfall(missingNames: string[]): Promise<Map<string, Card>> {
@@ -98,8 +105,10 @@ async function fetchMissingCardsFromScryfall(missingNames: string[]): Promise<Ma
           const card = scryfallToCard(scryfallCard)
           
           // Find which input name matched this card
+          // Try exact match first, then try matching by front face (for DFC cards)
           const matchingInputName = batch.find(name => 
-            name.toLowerCase() === scryfallCard.name.toLowerCase()
+            name.toLowerCase() === scryfallCard.name.toLowerCase() ||
+            (name.includes('//') && getFrontFace(name).toLowerCase() === getFrontFace(scryfallCard.name).toLowerCase())
           )
           
           if (matchingInputName) {
@@ -108,10 +117,53 @@ async function fetchMissingCardsFromScryfall(missingNames: string[]): Promise<Ma
         }
       }
 
-      // Handle not_found entries
+      // Handle not_found entries - retry with front face for DFC cards
       if (data.not_found && Array.isArray(data.not_found)) {
+        const dfcRetries: Array<{ originalName: string, frontFace: string }> = []
+        
         for (const notFound of data.not_found) {
-          console.warn(`Card not found on Scryfall: ${notFound.name}`)
+          const name = notFound.name
+          
+          // If the name contains '//', it might be a DFC card - try searching by front face only
+          if (name.includes('//')) {
+            const frontFace = getFrontFace(name)
+            dfcRetries.push({ originalName: name, frontFace })
+          } else {
+            console.warn(`Card not found on Scryfall: ${name}`)
+          }
+        }
+        
+        // Retry DFC cards with front face only
+        if (dfcRetries.length > 0) {
+          const retryIdentifiers = dfcRetries.map(r => ({ name: r.frontFace }))
+          
+          const retryResponse = await fetch(SCRYFALL_COLLECTION_API, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ identifiers: retryIdentifiers })
+          })
+          
+          if (retryResponse.ok) {
+            const retryData = await retryResponse.json()
+            
+            if (retryData.data && Array.isArray(retryData.data)) {
+              for (const scryfallCard of retryData.data as ScryfallCard[]) {
+                const card = scryfallToCard(scryfallCard)
+                
+                // Match back to original input name
+                const matchingRetry = dfcRetries.find(r => 
+                  r.frontFace.toLowerCase() === getFrontFace(scryfallCard.name).toLowerCase()
+                )
+                
+                if (matchingRetry) {
+                  result.set(matchingRetry.originalName, card)
+                  console.log(`✓ Found DFC card "${matchingRetry.originalName}" by front face search → "${card.name}"`)
+                }
+              }
+            }
+          }
         }
       }
 
