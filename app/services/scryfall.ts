@@ -15,7 +15,7 @@
 
 import type { ScryfallCard } from '~/types/deck'
 import type { CardSuggestion, SuggestionGroup } from '~/types/suggestions'
-import type { ResolveCardsRequest, ResolveCardsResponse, PerformanceStats, Card } from '~/shared/types'
+import type { ResolveCardsRequest, ResolveCardsResponse, PerformanceStats, Card } from '../../shared/types'
 import { analyzeMatch } from '~/utils/suggestion-scorer'
 
 /**
