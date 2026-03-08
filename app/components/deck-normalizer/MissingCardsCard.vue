@@ -4,6 +4,16 @@ interface Props {
 }
 
 defineProps<Props>()
+
+/**
+ * Extract card name from "4x Card Name" format
+ * Example: "4x Llanower Elfs" -> "Llanower Elfs"
+ */
+function extractCardName(cardString: string): string {
+  // Match pattern: number + "x" + space + card name
+  const match = cardString.match(/^\d+x\s+(.+)$/)
+  return match?.[1] || cardString
+}
 </script>
 
 <template>
@@ -44,7 +54,7 @@ defineProps<Props>()
               <span class="font-mono text-sm truncate">{{ cardName }}</span>
             </div>
             <UButton
-              :to="`https://scryfall.com/search?q=${encodeURIComponent(cardName)}`"
+              :to="`https://scryfall.com/search?q=${encodeURIComponent(extractCardName(cardName))}`"
               target="_blank"
               size="xs"
               variant="soft"
