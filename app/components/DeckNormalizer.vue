@@ -3,6 +3,7 @@
 import { useClipboard } from '@vueuse/core'
 import type { CardSuggestion } from '~/types/suggestions'
 import type { NormalizedCard } from '~/types/deck'
+import MissingCardsCard from '~/components/deck-normalizer/MissingCardsCard.vue'
 
 // ============================================
 // State
@@ -38,6 +39,15 @@ const suggestions = useSuggestions(input, () => {
   // Called when all suggestions are resolved (accepted or dismissed)
   handleFinalizeDeck()
 })
+
+// ============================================
+// Computed Properties
+// ============================================
+
+// Convert NormalizedCard[] to string[] with quantities for MissingCardsCard
+const missingCardsFormatted = computed(() =>
+  missingCardsForOutput.value.map(card => `${card.quantity}x ${card.name}`)
+)
 
 // ============================================
 // Normalization
@@ -100,7 +110,7 @@ async function handleNormalize() {
       description: errorMessage,
       color: 'error',
       icon: 'i-lucide-alert-circle',
-      timeout: 0 // Keep error visible until dismissed
+      duration: 0 // Keep error visible until dismissed
     })
   }
 }
@@ -143,7 +153,7 @@ function handleFinalizeDeck() {
       description: errorMessage,
       color: 'error',
       icon: 'i-lucide-alert-circle',
-      timeout: 0 // Keep error visible until dismissed
+      duration: 0 // Keep error visible until dismissed
     })
   }
 }
@@ -293,6 +303,11 @@ function copyToClipboard() {
           <PerformanceCard
             v-if="performance"
             :performance="performance"
+          />
+
+          <MissingCardsCard
+            v-if="missingCardsForOutput.length > 0"
+            :cards="missingCardsFormatted"
           />
 
           <SuggestionsCard
