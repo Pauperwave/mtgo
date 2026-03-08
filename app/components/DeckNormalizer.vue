@@ -91,16 +91,17 @@ async function handleNormalize() {
       })
     }
 
-    // If no manual suggestions remain, finalize immediately
-    if (suggestionGroup.requireConfirmation.length === 0) {
-      handleFinalizeDeck()
-    } else {
-      // Manual suggestions exist - show partial output immediately
-      handleFinalizeDeck()
-    }
-    // Otherwise, show suggestions to user and wait for them to accept/reject
+    // Generate output immediately (either complete or partial with pending suggestions)
+    handleFinalizeDeck()
   } catch (err) {
-    // console.error('Errore di normalizzazione:', err)
+    const errorMessage = err instanceof Error ? err.message : 'Errore durante la normalizzazione'
+    toast.add({
+      title: 'Errore di normalizzazione',
+      description: errorMessage,
+      color: 'error',
+      icon: 'i-lucide-alert-circle',
+      timeout: 0 // Keep error visible until dismissed
+    })
   }
 }
 
@@ -114,8 +115,6 @@ function handleFinalizeDeck() {
     // Re-parse the (now corrected) deck input
     const finalParsed = parseRawDeck(input.value)
 
-    // console.log('handleFinalizeDeck: suggestions.suggestions.value =', suggestions.suggestions.value)
-
     // Build pending suggestions map from current suggestions
     // Use ORIGINAL card names (searchedName) as keys to match parsed input
     // Keep only FIRST (most confident) suggestion per card since array is pre-sorted by confidence
@@ -124,25 +123,11 @@ function handleFinalizeDeck() {
       // Only set if key doesn't exist yet (keeps first/best match)
       if (!pendingSuggestionsMap.has(suggestion.searchedName)) {
         pendingSuggestionsMap.set(suggestion.searchedName, suggestion.suggestedCard)
-        // console.log('handleFinalizeDeck: Adding to map', {
-        //   key: suggestion.searchedName,
-        //   suggestedCardName: suggestion.suggestedCard.name
-        // })
       }
     }
 
-    // console.log('handleFinalizeDeck: pendingSuggestionsMap keys =', Array.from(pendingSuggestionsMap.keys()))
-    // console.log('handleFinalizeDeck: parsed card names =', finalParsed.map(c => c.name))
-
     // Normalize using the cached Scryfall index with pending suggestions
     const result = normalize(finalParsed, pendingSuggestionsMap)
-    
-    // console.log('handleFinalizeDeck: result =', {
-    //   pendingCardsCount: result.pendingCards.length,
-    //   pendingCards: result.pendingCards.map(c => ({ name: c.name, isPending: c.isPending })),
-    //   missingCardsCount: result.missingCards.length,
-    //   missingCards: result.missingCards.map(c => ({ name: c.name, isMissing: c.isMissing }))
-    // })
 
     // Update state with structured data
     normalizedOutput.value = result.output
@@ -152,7 +137,14 @@ function handleFinalizeDeck() {
     // Track if output is partial (has pending suggestions or missing cards)
     isPartialOutput.value = result.pendingCards.length > 0 || result.missingCards.length > 0
   } catch (err) {
-    // console.error('Failed to generate normalized output:', err)
+    const errorMessage = err instanceof Error ? err.message : 'Errore durante la generazione dell\'output'
+    toast.add({
+      title: 'Errore durante la generazione dell\'output',
+      description: errorMessage,
+      color: 'error',
+      icon: 'i-lucide-alert-circle',
+      timeout: 0 // Keep error visible until dismissed
+    })
   }
 }
 
@@ -177,7 +169,7 @@ function handleAcceptSuggestion(suggestion: CardSuggestion) {
 function handleRejectSuggestion(searchedName: string) {
   suggestions.dismissSuggestion(searchedName)
   // When all suggestions are dismissed, the callback will trigger handleFinalizeDeck
-  // Rejected cards will appear as # MISSING in the output
+  // Rejected cards will be marked as missing and highlighted in red in the output
   
   // Immediately regenerate output to show rejected card as missing
   handleFinalizeDeck()

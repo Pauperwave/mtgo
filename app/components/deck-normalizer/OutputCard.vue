@@ -58,12 +58,6 @@ const styledLines = computed(() => {
   const lines: OutputLine[] = []
   const outputLines = props.output.split('\n')
   
-  // console.log('OutputCard styledLines debug:', {
-  //   pendingCardNames: Array.from(pendingCardNames.value),
-  //   missingCardNames: Array.from(missingCardNames.value),
-  //   outputLines: outputLines.slice(0, 10) // First 10 lines
-  // })
-  
   for (const line of outputLines) {
     const trimmed = line.trim()
     
@@ -76,15 +70,6 @@ const styledLines = computed(() => {
     
     const isPending = cardName ? pendingCardNames.value.has(cardName) : false
     const isMissing = cardName ? missingCardNames.value.has(cardName) : false
-    
-    // if (cardName) {
-    //   console.log('Checking line:', {
-    //     line: trimmed,
-    //     cardName,
-    //     isPending,
-    //     isMissing
-    //   })
-    // }
     
     lines.push({
       text: line,

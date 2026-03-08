@@ -89,19 +89,6 @@ export function useDeckNormalizer() {
       pendingSuggestions
     )
 
-    // Log land categories for visibility when "Normalizza Mazzo" is clicked
-    // const landRows = normalized
-    //   .filter(card => card.section === 'Land')
-    //   .map(card => ({
-    //     quantity: card.quantity,
-    //     name: card.name,
-    //     category: card.landCategory ?? 'Unknown'
-    //   }))
-
-    // if (landRows.length) {
-    //   console.table(landRows)
-    // }
-
     // Separate cards by status
     const pendingCards = normalized.filter(c => c.isPending)
     const missingCards = normalized.filter(c => c.isMissing)
