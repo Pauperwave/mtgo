@@ -7,9 +7,6 @@ interface Props {
 
 const props = defineProps<Props>()
 
-// Collapse state
-const isCollapsed = ref(false)
-
 // Calculate cache hit rate percentage
 const cacheHitRate = computed(() => {
   if (props.performance.totalRequests === 0) return 0
@@ -34,43 +31,32 @@ const formattedTime = computed(() => {
 </script>
 
 <template>
-  <UCard
+  <CollapsibleCard
     color="neutral"
-    class="border-neutral/50"
+    border-class="border-neutral/50"
   >
-    <template #header>
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <UIcon
-            name="i-lucide-gauge"
-            class="size-5 text-primary"
-          />
-          <h2 class="text-lg font-semibold">
-            Performance
-          </h2>
-        </div>
-        <div class="flex items-center gap-2">
-          <UBadge
-            :color="cacheHitColor"
-            variant="soft"
-          >
-            {{ cacheHitRate }}% cache hit
-          </UBadge>
-          <UButton
-            :icon="isCollapsed ? 'i-lucide-chevron-down' : 'i-lucide-chevron-up'"
-            size="xs"
-            variant="ghost"
-            color="neutral"
-            @click="isCollapsed = !isCollapsed"
-          />
-        </div>
-      </div>
+    <template #header-icon>
+      <UIcon
+        name="i-lucide-gauge"
+        class="size-5 text-primary"
+      />
     </template>
 
-    <div
-      v-show="!isCollapsed"
-      class="space-y-4"
-    >
+    <template #header-title>
+      Performance
+    </template>
+
+    <template #header-badge>
+      <UBadge
+        :color="cacheHitColor"
+        variant="soft"
+      >
+        {{ cacheHitRate }}% cache hit
+      </UBadge>
+    </template>
+
+    <!-- Card body content -->
+    <div class="space-y-4">
       <!-- Stats grid -->
       <div class="grid grid-cols-2 gap-4">
         <!-- Database hits -->
@@ -184,5 +170,5 @@ const formattedTime = computed(() => {
         </p>
       </div>
     </div>
-  </UCard>
+  </CollapsibleCard>
 </template>

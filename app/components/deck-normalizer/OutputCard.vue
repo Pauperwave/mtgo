@@ -16,9 +16,6 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
-// Collapse state
-const isCollapsed = ref(false)
-
 // Computed for warning message based on actual arrays
 const warningMessage = computed(() => {
   if (!props.isPartial) return ''
@@ -88,40 +85,31 @@ const styledLines = computed(() => {
 </script>
 
 <template>
-  <UCard class="border-success/20">
-    <template #header>
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <UIcon
-            :name="isPartial ? 'i-lucide-alert-triangle' : 'i-lucide-file-check'"
-            :class="isPartial ? 'size-5 text-warning' : 'size-5 text-success'"
-          />
-          <h2 class="text-lg font-semibold">
-            Output Normalizzato
-          </h2>
-        </div>
-        <div class="flex items-center gap-2">
-          <UButton
-            size="xs"
-            variant="ghost"
-            color="success"
-            :icon="copied ? 'i-lucide-check' : 'i-lucide-copy'"
-            @click="emit('copy')"
-          >
-            {{ copied ? 'Copiato!' : 'Copia' }}
-          </UButton>
-          <UButton
-            :icon="isCollapsed ? 'i-lucide-chevron-down' : 'i-lucide-chevron-up'"
-            size="xs"
-            variant="ghost"
-            color="neutral"
-            @click="isCollapsed = !isCollapsed"
-          />
-        </div>
-      </div>
+  <CollapsibleCard border-class="border-success/20">
+    <template #header-icon>
+      <UIcon
+        :name="isPartial ? 'i-lucide-alert-triangle' : 'i-lucide-file-check'"
+        :class="isPartial ? 'size-5 text-warning' : 'size-5 text-success'"
+      />
     </template>
 
-    <div v-show="!isCollapsed">
+    <template #header-title>
+      Output Normalizzato
+    </template>
+
+    <template #header-actions>
+      <UButton
+        size="xs"
+        variant="ghost"
+        color="success"
+        :icon="copied ? 'i-lucide-check' : 'i-lucide-copy'"
+        @click="emit('copy')"
+      >
+        {{ copied ? 'Copiato!' : 'Copia' }}
+      </UButton>
+    </template>
+
+    <div>
       <!-- Partial output warning -->
       <UAlert
         v-if="isPartial"
@@ -144,5 +132,5 @@ const styledLines = computed(() => {
         >{{ line.text }}{{ index < styledLines.length - 1 ? '\n' : '' }}</span></pre>
       </div>
     </div>
-  </UCard>
+  </CollapsibleCard>
 </template>

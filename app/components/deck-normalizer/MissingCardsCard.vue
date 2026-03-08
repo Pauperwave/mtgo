@@ -5,9 +5,6 @@ interface Props {
 
 defineProps<Props>()
 
-// Collapse state
-const isCollapsed = ref(false)
-
 /**
  * Extract card name from "4x Card Name" format
  * Example: "4x Llanower Elfs" -> "Llanower Elfs"
@@ -20,35 +17,22 @@ function extractCardName(cardString: string): string {
 </script>
 
 <template>
-  <UCard
+  <CollapsibleCard
     color="warning"
-    class="border-warning/50"
+    border-class="border-warning/50"
   >
-    <template #header>
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <UIcon
-            name="i-lucide-alert-triangle"
-            class="size-5 text-warning"
-          />
-          <h2 class="text-lg font-semibold">
-            Carte Non Trovate
-          </h2>
-        </div>
-        <UButton
-          :icon="isCollapsed ? 'i-lucide-chevron-down' : 'i-lucide-chevron-up'"
-          size="xs"
-          variant="ghost"
-          color="neutral"
-          @click="isCollapsed = !isCollapsed"
-        />
-      </div>
+    <template #header-icon>
+      <UIcon
+        name="i-lucide-alert-triangle"
+        class="size-5 text-warning"
+      />
     </template>
 
-    <div
-      v-show="!isCollapsed"
-      class="space-y-3"
-    >
+    <template #header-title>
+      Carte Non Trovate
+    </template>
+
+    <div class="space-y-3">
       <p class="text-sm text-muted">
         {{ cards.length > 1 ? 'Le seguenti carte non sono state trovate' : 'La seguente carta non è stata trovata' }} su Scryfall.
         Controlla l'ortografia o il nome della carta.
@@ -93,5 +77,5 @@ function extractCardName(cardString: string): string {
         </span>
       </div>
     </div>
-  </UCard>
+  </CollapsibleCard>
 </template>

@@ -4,50 +4,35 @@ interface Props {
 }
 
 defineProps<Props>()
-
-// Collapse state
-const isCollapsed = ref(false)
 </script>
 
 <template>
-  <UCard
+  <CollapsibleCard
     v-if="!validation.isValid || validation.warnings.length > 0"
     :color="validation.isValid ? 'warning' : 'error'"
-    :class="validation.isValid ? 'border-warning/50' : 'border-error/50'"
+    :border-class="validation.isValid ? 'border-warning/50' : 'border-error/50'"
   >
-    <template #header>
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <UIcon
-            :name="validation.isValid ? 'i-lucide-alert-triangle' : 'i-lucide-alert-circle'"
-            :class="validation.isValid ? 'size-5 text-warning' : 'size-5 text-error'"
-          />
-          <h2 class="text-lg font-semibold">
-            {{ validation.isValid ? 'Attenzione' : 'Errori di Validazione' }}
-          </h2>
-        </div>
-        <div class="flex items-center gap-2">
-          <UBadge
-            :color="validation.isValid ? 'warning' : 'error'"
-            variant="subtle"
-          >
-            {{ validation.stats.mainDeckCount }} + {{ validation.stats.sideboardCount }} carte
-          </UBadge>
-          <UButton
-            :icon="isCollapsed ? 'i-lucide-chevron-down' : 'i-lucide-chevron-up'"
-            size="xs"
-            variant="ghost"
-            color="neutral"
-            @click="isCollapsed = !isCollapsed"
-          />
-        </div>
-      </div>
+    <template #header-icon>
+      <UIcon
+        :name="validation.isValid ? 'i-lucide-alert-triangle' : 'i-lucide-alert-circle'"
+        :class="validation.isValid ? 'size-5 text-warning' : 'size-5 text-error'"
+      />
     </template>
 
-    <div
-      v-show="!isCollapsed"
-      class="space-y-3"
-    >
+    <template #header-title>
+      {{ validation.isValid ? 'Attenzione' : 'Errori di Validazione' }}
+    </template>
+
+    <template #header-badge>
+      <UBadge
+        :color="validation.isValid ? 'warning' : 'error'"
+        variant="subtle"
+      >
+        {{ validation.stats.mainDeckCount }} + {{ validation.stats.sideboardCount }} carte
+      </UBadge>
+    </template>
+
+    <div class="space-y-3">
       <!-- Errors -->
       <div
         v-if="validation.errors.length > 0"
@@ -110,5 +95,5 @@ const isCollapsed = ref(false)
         </div>
       </div>
     </div>
-  </UCard>
+  </CollapsibleCard>
 </template>

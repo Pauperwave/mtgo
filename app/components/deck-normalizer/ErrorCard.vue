@@ -5,41 +5,25 @@ interface Props {
 }
 
 defineProps<Props>()
-
-// Collapse state
-const isCollapsed = ref(false)
 </script>
 
 <template>
-  <UCard
+  <CollapsibleCard
     color="error"
-    class="border-error/50"
+    border-class="border-error/50"
   >
-    <template #header>
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <UIcon
-            name="i-lucide-alert-circle"
-            class="size-5 text-error"
-          />
-          <h2 class="text-lg font-semibold">
-            Errore
-          </h2>
-        </div>
-        <UButton
-          :icon="isCollapsed ? 'i-lucide-chevron-down' : 'i-lucide-chevron-up'"
-          size="xs"
-          variant="ghost"
-          color="neutral"
-          @click="isCollapsed = !isCollapsed"
-        />
-      </div>
+    <template #header-icon>
+      <UIcon
+        name="i-lucide-alert-circle"
+        class="size-5 text-error"
+      />
     </template>
 
-    <div
-      v-show="!isCollapsed"
-      class="space-y-3"
-    >
+    <template #header-title>
+      Errore
+    </template>
+
+    <div class="space-y-3">
       <p class="text-sm text-muted">
         {{ message }}
       </p>
@@ -83,5 +67,5 @@ const isCollapsed = ref(false)
         </span>
       </div>
     </div>
-  </UCard>
+  </CollapsibleCard>
 </template>

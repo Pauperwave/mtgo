@@ -15,9 +15,6 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
-// Collapse state
-const isCollapsed = ref(false)
-
 // Group suggestions by searched name
 const groupedSuggestions = computed(() => {
   const groups = new Map<string, CardSuggestion[]>()
@@ -50,43 +47,31 @@ function getConfidenceIcon(confidence: CardSuggestion['confidence']) {
 </script>
 
 <template>
-  <UCard
+  <CollapsibleCard
     color="info"
-    class="border-info/50"
+    border-class="border-info/50"
   >
-    <template #header>
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <UIcon
-            name="i-lucide-lightbulb"
-            class="size-5 text-info"
-          />
-          <h2 class="text-lg font-semibold">
-            Carte Non Riconosciute
-          </h2>
-        </div>
-        <div class="flex items-center gap-2">
-          <UBadge
-            color="warning"
-            variant="soft"
-          >
-            {{ suggestions.length }} {{ suggestions.length === 1 ? 'carta' : 'carte' }}
-          </UBadge>
-          <UButton
-            :icon="isCollapsed ? 'i-lucide-chevron-down' : 'i-lucide-chevron-up'"
-            size="xs"
-            variant="ghost"
-            color="neutral"
-            @click="isCollapsed = !isCollapsed"
-          />
-        </div>
-      </div>
+    <template #header-icon>
+      <UIcon
+        name="i-lucide-lightbulb"
+        class="size-5 text-info"
+      />
     </template>
 
-    <div
-      v-show="!isCollapsed"
-      class="space-y-3"
-    >
+    <template #header-title>
+      Carte Non Riconosciute
+    </template>
+
+    <template #header-badge>
+      <UBadge
+        color="warning"
+        variant="soft"
+      >
+        {{ suggestions.length }} {{ suggestions.length === 1 ? 'carta' : 'carte' }}
+      </UBadge>
+    </template>
+
+    <div class="space-y-3">
       <p class="text-sm text-muted">
         {{ suggestions.length > 1 ? 'Le seguenti carte non sono state riconosciute' : 'La seguente carta non è stata riconosciuta' }} esattamente, ma {{ suggestions.length > 1 ? 'sono state trovate corrispondenze' : 'è stata trovata una corrispondenza' }} simile.
         Vuoi applicare {{ suggestions.length > 1 ? 'le correzioni' : 'la correzione' }}?
@@ -216,5 +201,5 @@ function getConfidenceIcon(confidence: CardSuggestion['confidence']) {
         </div>
       </div>
     </div>
-  </UCard>
+  </CollapsibleCard>
 </template>
