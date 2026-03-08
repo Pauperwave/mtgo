@@ -9,6 +9,7 @@ interface Props {
 
 interface Emits {
   (e: 'apply', suggestion: CardSuggestion): void
+  (e: 'apply-all', suggestions: CardSuggestion[]): void
   (e: 'dismiss', searchedName: string): void
 }
 
@@ -29,6 +30,11 @@ const groupedSuggestions = computed(() => {
   return Array.from(groups.entries())
 })
 
+// Get the first (highest confidence) suggestion from each group
+const firstSuggestions = computed(() => {
+  return groupedSuggestions.value.map(([_, suggestions]) => suggestions[0])
+})
+
 function getConfidenceColor(confidence: CardSuggestion['confidence']) {
   return CONFIDENCE_DISPLAY[confidence].color
 }
@@ -44,6 +50,10 @@ function getMatchTypeLabel(matchType: CardSuggestion['matchType']) {
 function getConfidenceIcon(confidence: CardSuggestion['confidence']) {
   return CONFIDENCE_DISPLAY[confidence].icon
 }
+
+function handleAcceptAll() {
+  emit('apply-all', firstSuggestions.value)
+}
 </script>
 
 <template>
@@ -56,6 +66,18 @@ function getConfidenceIcon(confidence: CardSuggestion['confidence']) {
         name="i-lucide-lightbulb"
         class="size-5 text-info"
       />
+    </template>
+
+    <template #header-actions>
+      <UButton
+        size="xs"
+        variant="ghost"
+        color="success"
+        icon="i-lucide-check-check"
+        @click="handleAcceptAll"
+      >
+        Accetta suggerimenti
+      </UButton>
     </template>
 
     <template #header-title>

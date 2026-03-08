@@ -174,6 +174,22 @@ function handleAcceptSuggestion(suggestion: CardSuggestion) {
 }
 
 /**
+ * Handle user accepting all first suggestions at once
+ */
+function handleAcceptAllSuggestions(allSuggestions: CardSuggestion[]) {
+  // Apply each suggestion sequentially
+  for (const suggestion of allSuggestions) {
+    // Update the Scryfall index with the accepted card
+    updateIndexWithSuggestion(suggestion.suggestedCard)
+    // Apply the suggestion to the input text
+    suggestions.applySuggestion(suggestion)
+  }
+  
+  // Regenerate output once after all suggestions are applied
+  handleFinalizeDeck()
+}
+
+/**
  * Handle user rejecting a manual suggestion
  */
 function handleRejectSuggestion(searchedName: string) {
@@ -314,6 +330,7 @@ function copyToClipboard() {
             v-if="suggestions.suggestions.value.length > 0"
             :suggestions="suggestions.suggestions.value"
             @apply="handleAcceptSuggestion"
+            @apply-all="handleAcceptAllSuggestions"
             @dismiss="handleRejectSuggestion"
           />
 
