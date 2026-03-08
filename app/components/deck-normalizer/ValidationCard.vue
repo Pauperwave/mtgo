@@ -4,6 +4,9 @@ interface Props {
 }
 
 defineProps<Props>()
+
+// Collapse state
+const isCollapsed = ref(false)
 </script>
 
 <template>
@@ -23,16 +26,28 @@ defineProps<Props>()
             {{ validation.isValid ? 'Attenzione' : 'Errori di Validazione' }}
           </h2>
         </div>
-        <UBadge
-          :color="validation.isValid ? 'warning' : 'error'"
-          variant="subtle"
-        >
-          {{ validation.stats.mainDeckCount }} + {{ validation.stats.sideboardCount }} carte
-        </UBadge>
+        <div class="flex items-center gap-2">
+          <UBadge
+            :color="validation.isValid ? 'warning' : 'error'"
+            variant="subtle"
+          >
+            {{ validation.stats.mainDeckCount }} + {{ validation.stats.sideboardCount }} carte
+          </UBadge>
+          <UButton
+            :icon="isCollapsed ? 'i-lucide-chevron-down' : 'i-lucide-chevron-up'"
+            size="xs"
+            variant="ghost"
+            color="neutral"
+            @click="isCollapsed = !isCollapsed"
+          />
+        </div>
       </div>
     </template>
 
-    <div class="space-y-3">
+    <div
+      v-show="!isCollapsed"
+      class="space-y-3"
+    >
       <!-- Errors -->
       <div
         v-if="validation.errors.length > 0"

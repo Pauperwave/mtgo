@@ -15,6 +15,9 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
+// Collapse state
+const isCollapsed = ref(false)
+
 // Group suggestions by searched name
 const groupedSuggestions = computed(() => {
   const groups = new Map<string, CardSuggestion[]>()
@@ -62,16 +65,28 @@ function getConfidenceIcon(confidence: CardSuggestion['confidence']) {
             Carte Non Riconosciute
           </h2>
         </div>
-        <UBadge
-          color="warning"
-          variant="soft"
-        >
-          {{ suggestions.length }} {{ suggestions.length === 1 ? 'carta' : 'carte' }}
-        </UBadge>
+        <div class="flex items-center gap-2">
+          <UBadge
+            color="warning"
+            variant="soft"
+          >
+            {{ suggestions.length }} {{ suggestions.length === 1 ? 'carta' : 'carte' }}
+          </UBadge>
+          <UButton
+            :icon="isCollapsed ? 'i-lucide-chevron-down' : 'i-lucide-chevron-up'"
+            size="xs"
+            variant="ghost"
+            color="neutral"
+            @click="isCollapsed = !isCollapsed"
+          />
+        </div>
       </div>
     </template>
 
-    <div class="space-y-3">
+    <div
+      v-show="!isCollapsed"
+      class="space-y-3"
+    >
       <p class="text-sm text-muted">
         {{ suggestions.length > 1 ? 'Le seguenti carte non sono state riconosciute' : 'La seguente carta non è stata riconosciuta' }} esattamente, ma {{ suggestions.length > 1 ? 'sono state trovate corrispondenze' : 'è stata trovata una corrispondenza' }} simile.
         Vuoi applicare {{ suggestions.length > 1 ? 'le correzioni' : 'la correzione' }}?

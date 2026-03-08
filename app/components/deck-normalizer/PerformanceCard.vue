@@ -7,6 +7,9 @@ interface Props {
 
 const props = defineProps<Props>()
 
+// Collapse state
+const isCollapsed = ref(false)
+
 // Calculate cache hit rate percentage
 const cacheHitRate = computed(() => {
   if (props.performance.totalRequests === 0) return 0
@@ -46,16 +49,28 @@ const formattedTime = computed(() => {
             Performance
           </h2>
         </div>
-        <UBadge
-          :color="cacheHitColor"
-          variant="soft"
-        >
-          {{ cacheHitRate }}% cache hit
-        </UBadge>
+        <div class="flex items-center gap-2">
+          <UBadge
+            :color="cacheHitColor"
+            variant="soft"
+          >
+            {{ cacheHitRate }}% cache hit
+          </UBadge>
+          <UButton
+            :icon="isCollapsed ? 'i-lucide-chevron-down' : 'i-lucide-chevron-up'"
+            size="xs"
+            variant="ghost"
+            color="neutral"
+            @click="isCollapsed = !isCollapsed"
+          />
+        </div>
       </div>
     </template>
 
-    <div class="space-y-4">
+    <div
+      v-show="!isCollapsed"
+      class="space-y-4"
+    >
       <!-- Stats grid -->
       <div class="grid grid-cols-2 gap-4">
         <!-- Database hits -->

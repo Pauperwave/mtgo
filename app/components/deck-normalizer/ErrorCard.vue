@@ -5,6 +5,9 @@ interface Props {
 }
 
 defineProps<Props>()
+
+// Collapse state
+const isCollapsed = ref(false)
 </script>
 
 <template>
@@ -13,18 +16,30 @@ defineProps<Props>()
     class="border-error/50"
   >
     <template #header>
-      <div class="flex items-center gap-2">
-        <UIcon
-          name="i-lucide-alert-circle"
-          class="size-5 text-error"
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <UIcon
+            name="i-lucide-alert-circle"
+            class="size-5 text-error"
+          />
+          <h2 class="text-lg font-semibold">
+            Errore
+          </h2>
+        </div>
+        <UButton
+          :icon="isCollapsed ? 'i-lucide-chevron-down' : 'i-lucide-chevron-up'"
+          size="xs"
+          variant="ghost"
+          color="neutral"
+          @click="isCollapsed = !isCollapsed"
         />
-        <h2 class="text-lg font-semibold">
-          Errore
-        </h2>
       </div>
     </template>
 
-    <div class="space-y-3">
+    <div
+      v-show="!isCollapsed"
+      class="space-y-3"
+    >
       <p class="text-sm text-muted">
         {{ message }}
       </p>

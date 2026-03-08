@@ -16,6 +16,9 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
+// Collapse state
+const isCollapsed = ref(false)
+
 // Computed for warning message based on actual arrays
 const warningMessage = computed(() => {
   if (!props.isPartial) return ''
@@ -97,38 +100,49 @@ const styledLines = computed(() => {
             Output Normalizzato
           </h2>
         </div>
-        <UButton
-          size="xs"
-          variant="ghost"
-          color="success"
-          :icon="copied ? 'i-lucide-check' : 'i-lucide-copy'"
-          @click="emit('copy')"
-        >
-          {{ copied ? 'Copiato!' : 'Copia' }}
-        </UButton>
+        <div class="flex items-center gap-2">
+          <UButton
+            size="xs"
+            variant="ghost"
+            color="success"
+            :icon="copied ? 'i-lucide-check' : 'i-lucide-copy'"
+            @click="emit('copy')"
+          >
+            {{ copied ? 'Copiato!' : 'Copia' }}
+          </UButton>
+          <UButton
+            :icon="isCollapsed ? 'i-lucide-chevron-down' : 'i-lucide-chevron-up'"
+            size="xs"
+            variant="ghost"
+            color="neutral"
+            @click="isCollapsed = !isCollapsed"
+          />
+        </div>
       </div>
     </template>
 
-    <!-- Partial output warning -->
-    <UAlert
-      v-if="isPartial"
-      color="warning"
-      icon="i-lucide-alert-triangle"
-      title="Output Parziale"
-      :description="warningMessage"
-      class="mb-4"
-    />
+    <div v-show="!isCollapsed">
+      <!-- Partial output warning -->
+      <UAlert
+        v-if="isPartial"
+        color="warning"
+        icon="i-lucide-alert-triangle"
+        title="Output Parziale"
+        :description="warningMessage"
+        class="mb-4"
+      />
 
-    <div class="rounded-lg overflow-y-auto">
-      <pre class="text-sm font-mono whitespace-pre-wrap"><span 
-        v-for="(line, index) in styledLines" 
-        :key="index"
-        :class="{
-          'text-warning': line.isPending,
-          'text-error': line.isMissing,
-          'text-gray-900 dark:text-gray-100': !line.isPending && !line.isMissing
-        }"
-      >{{ line.text }}{{ index < styledLines.length - 1 ? '\n' : '' }}</span></pre>
+      <div class="rounded-lg overflow-y-auto">
+        <pre class="text-sm font-mono whitespace-pre-wrap"><span 
+          v-for="(line, index) in styledLines" 
+          :key="index"
+          :class="{
+            'text-warning': line.isPending,
+            'text-error': line.isMissing,
+            'text-gray-900 dark:text-gray-100': !line.isPending && !line.isMissing
+          }"
+        >{{ line.text }}{{ index < styledLines.length - 1 ? '\n' : '' }}</span></pre>
+      </div>
     </div>
   </UCard>
 </template>
