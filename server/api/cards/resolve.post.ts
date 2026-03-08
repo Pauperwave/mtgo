@@ -135,6 +135,8 @@ async function fetchMissingCardsFromScryfall(missingNames: string[]): Promise<Ma
         
         // Retry DFC cards with front face only
         if (dfcRetries.length > 0) {
+          console.log(`🔄 Retrying ${dfcRetries.length} DFC card(s) with front face only:`, dfcRetries.map(r => `"${r.originalName}" → "${r.frontFace}"`).join(', '))
+          
           const retryIdentifiers = dfcRetries.map(r => ({ name: r.frontFace }))
           
           const retryResponse = await fetch(SCRYFALL_COLLECTION_API, {
@@ -148,6 +150,8 @@ async function fetchMissingCardsFromScryfall(missingNames: string[]): Promise<Ma
           if (retryResponse.ok) {
             const retryData = await retryResponse.json()
             
+            console.log(`📦 Retry response: found ${retryData.data?.length || 0} card(s), not_found ${retryData.not_found?.length || 0}`)
+            
             if (retryData.data && Array.isArray(retryData.data)) {
               for (const scryfallCard of retryData.data as ScryfallCard[]) {
                 const card = scryfallToCard(scryfallCard)
@@ -159,10 +163,16 @@ async function fetchMissingCardsFromScryfall(missingNames: string[]): Promise<Ma
                 
                 if (matchingRetry) {
                   result.set(matchingRetry.originalName, card)
-                  console.log(`✓ Found DFC card "${matchingRetry.originalName}" by front face search → "${card.name}"`)
+                  console.log(`  ✓ Found DFC card "${matchingRetry.originalName}" by front face search → "${card.name}"`)
                 }
               }
             }
+            
+            if (retryData.not_found && retryData.not_found.length > 0) {
+              console.warn(`  ✗ Still not found after retry:`, retryData.not_found.map((nf: any) => nf.name).join(', '))
+            }
+          } else {
+            console.error(`❌ DFC retry request failed: ${retryResponse.status} ${retryResponse.statusText}`)
           }
         }
       }
@@ -230,13 +240,18 @@ export default defineEventHandler(async (event): Promise<ResolveCardsResponse> =
     // Step 3: Fetch missing cards from Scryfall (batch)
     if (missingNames.length > 0) {
       console.log(`Fetching ${missingNames.length} missing cards from Scryfall...`)
+      console.log(`  Names: ${missingNames.join(', ')}`)
       
       const scryfallCards = await fetchMissingCardsFromScryfall(missingNames)
       scryfallRequests = scryfallCards.size
       
+      console.log(`  Scryfall returned ${scryfallCards.size} card(s)`)
+      
       for (const [inputName, card] of scryfallCards.entries()) {
         cards.push(card)
         nameMappings[inputName] = card.name
+        
+        console.log(`  ✓ Mapped: "${inputName}" → "${card.name}"`)
         
         // Track name mapping
         if (inputName !== card.name) {
@@ -248,6 +263,7 @@ export default defineEventHandler(async (event): Promise<ResolveCardsResponse> =
       for (const name of missingNames) {
         if (!scryfallCards.has(name)) {
           missing.push(name)
+          console.warn(`  ✗ Still missing after Scryfall: "${name}"`)
         }
       }
     }
