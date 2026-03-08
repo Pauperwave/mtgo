@@ -252,6 +252,13 @@ export default defineEventHandler(async (event): Promise<ResolveCardsResponse> =
         
         if (suggestions.length > 0) {
           console.log(`  ✓ Total: ${suggestions.length} ${suggestions.length === 1 ? 'suggestion' : 'suggestions'} for "${missingName}": ${suggestions.map(s => s.card.name).join(', ')}`)
+          
+          // Add name mapping for the best match (first suggestion)
+          const bestMatch = suggestions[0]
+          if (bestMatch) {
+            nameMappings[missingName] = bestMatch.card.name
+          }
+          
           fuzzySuggestions.push({
             searchedName: missingName,
             suggestions
