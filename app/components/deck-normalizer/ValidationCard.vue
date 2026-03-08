@@ -38,9 +38,6 @@ defineProps<Props>()
         v-if="validation.errors.length > 0"
         class="space-y-2"
       >
-        <p class="text-sm font-semibold text-error">
-          Errori ({{ validation.errors.length }}):
-        </p>
         <div class="bg-error/5 rounded-lg p-3 border border-error/20">
           <ul class="space-y-1.5">
             <li
