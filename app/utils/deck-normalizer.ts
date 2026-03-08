@@ -133,29 +133,59 @@ export function normalizeDeck(
  * -------------------------------------------------
  * Performance API for repeated use (live preview)
  * Expects caller to manage the index
- * Collects all missing cards and throws a single error
+ * Supports partial results with pending suggestions and missing cards
  */
 export function normalizeDeckWithIndex(
   parsed: readonly ParsedCard[],
   scryfallIndex: ReadonlyMap<string, ScryfallCard>,
-  nameMapping: Record<string, string> = {}
+  nameMapping: Record<string, string> = {},
+  pendingSuggestions: ReadonlyMap<string, ScryfallCard> = new Map()
 ): NormalizedCard[] {
-  const missingCards: string[] = []
   const normalized: NormalizedCard[] = []
 
   for (const card of parsed) {
-    // Try name mapping first (input → canonical name from server)
+    // PRIORITY 1: Check if this card has a pending suggestion (user hasn't accepted/rejected yet)
+    // Use the ORIGINAL card name (before any mapping) to match against suggestions
+    const pendingSuggestion = pendingSuggestions.get(card.name)
+    
+    if (pendingSuggestion) {
+      // Card has a pending suggestion - mark as pending even if it's in the index
+      const section = sectionFromTypeLine(pendingSuggestion.type_line, card.isSideboard)
+      const landCategory = section === 'Land' ? categorizeLand(pendingSuggestion) : undefined
+
+      normalized.push({
+        ...card,
+        name: pendingSuggestion.name, // Use suggested name
+        section,
+        cmc: pendingSuggestion.cmc,
+        mana_cost: pendingSuggestion.mana_cost ?? null,
+        landCategory,
+        isPending: true // Mark as pending confirmation
+      })
+      continue
+    }
+
+    // PRIORITY 2: Try name mapping (input → canonical name from server)
     const mappedName = nameMapping[card.name]
     
-    // Then extract front face for DFC lookups
+    // Extract front face for DFC lookups
     const frontFace = getFrontFaceName(mappedName || card.name)
     const scryfall = scryfallIndex.get(frontFace)
 
     if (!scryfall) {
-      missingCards.push(card.name)
+      // No match in index and no pending suggestion - mark as missing
+      normalized.push({
+        ...card,
+        name: card.name, // Keep original name
+        section: 'Unknown' as Section,
+        cmc: 0,
+        mana_cost: null,
+        isMissing: true // Mark as missing
+      })
       continue
     }
 
+    // Card found in index - use Scryfall data (normal resolved flow)
     const section = sectionFromTypeLine(
       scryfall.type_line,
       card.isSideboard
@@ -173,13 +203,6 @@ export function normalizeDeckWithIndex(
       mana_cost: scryfall.mana_cost ?? null,
       landCategory
     })
-  }
-
-  // If any cards are missing, throw error with all of them
-  if (missingCards.length > 0) {
-    throw new Error(
-      `Missing Scryfall data for: ${missingCards.join(', ')}`
-    )
   }
 
   return normalized
@@ -304,11 +327,13 @@ function sortCards(cards: readonly NormalizedCard[], section: Section): Normaliz
  * -------------------------------------------------
  * Sections are printed only if they contain cards
  * Cards are sorted according to section-specific rules
+ * Pending and missing cards are included without special markers
+ * (warnings are shown separately in the UI)
  */
 export function printDeck(cards: readonly NormalizedCard[]): string {
   return PRINT_ORDER
     .map((section) => {
-      const group = cards.filter(c => c.section === section)
+      const group = cards.filter(c => c.section === section && !c.isMissing)
 
       if (!group.length) return ''
 

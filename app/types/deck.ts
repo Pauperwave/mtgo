@@ -34,6 +34,8 @@ export interface NormalizedCard extends ParsedCard {
   cmc: number
   mana_cost?: string | null
   landCategory?: LandCategory
+  isPending?: boolean  // Card using a pending suggestion (not yet confirmed)
+  isMissing?: boolean  // Card with no match found
 }
 
 export interface ScryfallCard {

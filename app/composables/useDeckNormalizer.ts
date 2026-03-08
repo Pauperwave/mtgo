@@ -4,7 +4,7 @@
  * Manages Scryfall index and provides normalized deck output
  */
 
-import type { ParsedCard, ScryfallCard } from '~/types/deck'
+import type { ParsedCard, ScryfallCard, NormalizedCard } from '~/types/deck'
 import type { SuggestionGroup } from '~/types/suggestions'
 import type { PerformanceStats } from '~/shared/types'
 import { createScryfallIndex, normalizeDeckWithIndex, printDeck } from '~/utils/deck-normalizer'
@@ -67,14 +67,28 @@ export function useDeckNormalizer() {
 
   /**
    * Normalize parsed cards using the cached index
-   * Returns formatted MTGO-style deck list
+   * Returns formatted MTGO-style deck list with structured data
+   * Accepts optional pending suggestions to include temporarily in output
    */
-  function normalize(parsed: readonly ParsedCard[]): string {
+  function normalize(
+    parsed: readonly ParsedCard[],
+    pendingSuggestions?: ReadonlyMap<string, ScryfallCard>
+  ): {
+    output: string
+    normalizedCards: NormalizedCard[]
+    pendingCards: NormalizedCard[]
+    missingCards: NormalizedCard[]
+  } {
     if (!scryfallIndex.value) {
       throw new Error('Index not built yet. Call fetchAndBuildIndex first.')
     }
 
-    const normalized = normalizeDeckWithIndex(parsed, scryfallIndex.value, nameMapping.value)
+    const normalized = normalizeDeckWithIndex(
+      parsed,
+      scryfallIndex.value,
+      nameMapping.value,
+      pendingSuggestions
+    )
 
     // Log land categories for visibility when "Normalizza Mazzo" is clicked
     const landRows = normalized
@@ -89,7 +103,17 @@ export function useDeckNormalizer() {
       console.table(landRows)
     }
 
-    return printDeck(normalized)
+    // Separate cards by status
+    const pendingCards = normalized.filter(c => c.isPending)
+    const missingCards = normalized.filter(c => c.isMissing)
+    const validCards = normalized.filter(c => !c.isPending && !c.isMissing)
+
+    return {
+      output: printDeck(normalized),
+      normalizedCards: normalized,
+      pendingCards,
+      missingCards
+    }
   }
 
   /**

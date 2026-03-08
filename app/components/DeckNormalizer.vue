@@ -2,6 +2,8 @@
 <script setup lang="ts">
 import { useClipboard } from '@vueuse/core'
 import type { CardSuggestion } from '~/types/suggestions'
+import type { NormalizedCard } from '~/types/deck'
+import { getFrontFace } from '~/utils/card-name-normalization'
 
 // ============================================
 // State
@@ -9,8 +11,11 @@ import type { CardSuggestion } from '~/types/suggestions'
 
 const input = ref('')
 const normalizedOutput = ref('')
-const missingCards = ref<string[]>([])
+const pendingCardsForOutput = ref<NormalizedCard[]>([]) // Cards with pending suggestions in output
+const missingCardsForOutput = ref<NormalizedCard[]>([]) // Cards that couldn't be found
+const missingCards = ref<string[]>([]) // Legacy: for error display
 const validation = ref<ValidationResult | null>(null)
+const isPartialOutput = ref(false) // Track if output contains pending/missing cards
 
 const {
   isLoading,
@@ -92,6 +97,9 @@ async function handleNormalize() {
     // If no manual suggestions remain, finalize immediately
     if (suggestionGroup.requireConfirmation.length === 0) {
       handleFinalizeDeck()
+    } else {
+      // Manual suggestions exist - show partial output immediately
+      handleFinalizeDeck()
     }
     // Otherwise, show suggestions to user and wait for them to accept/reject
   } catch (err) {
@@ -109,14 +117,50 @@ async function handleNormalize() {
 /**
  * Finalize deck normalization after all suggestions are resolved
  * Called automatically when no manual suggestions remain
+ * Also called after each suggestion acceptance to show partial output
  */
 function handleFinalizeDeck() {
   try {
     // Re-parse the (now corrected) deck input
     const finalParsed = parseRawDeck(input.value)
 
-    // Normalize using the cached Scryfall index
-    normalizedOutput.value = normalize(finalParsed)
+    // console.log('handleFinalizeDeck: suggestions.suggestions.value =', suggestions.suggestions.value)
+
+    // Build pending suggestions map from current suggestions
+    // Use ORIGINAL card names (searchedName) as keys to match parsed input
+    // Keep only FIRST (most confident) suggestion per card since array is pre-sorted by confidence
+    const pendingSuggestionsMap = new Map<string, ScryfallCard>()
+    for (const suggestion of suggestions.suggestions.value) {
+      // Only set if key doesn't exist yet (keeps first/best match)
+      if (!pendingSuggestionsMap.has(suggestion.searchedName)) {
+        pendingSuggestionsMap.set(suggestion.searchedName, suggestion.suggestedCard)
+        // console.log('handleFinalizeDeck: Adding to map', {
+        //   key: suggestion.searchedName,
+        //   suggestedCardName: suggestion.suggestedCard.name
+        // })
+      }
+    }
+
+    // console.log('handleFinalizeDeck: pendingSuggestionsMap keys =', Array.from(pendingSuggestionsMap.keys()))
+    // console.log('handleFinalizeDeck: parsed card names =', finalParsed.map(c => c.name))
+
+    // Normalize using the cached Scryfall index with pending suggestions
+    const result = normalize(finalParsed, pendingSuggestionsMap)
+    
+    // console.log('handleFinalizeDeck: result =', {
+    //   pendingCardsCount: result.pendingCards.length,
+    //   pendingCards: result.pendingCards.map(c => ({ name: c.name, isPending: c.isPending })),
+    //   missingCardsCount: result.missingCards.length,
+    //   missingCards: result.missingCards.map(c => ({ name: c.name, isMissing: c.isMissing }))
+    // })
+
+    // Update state with structured data
+    normalizedOutput.value = result.output
+    pendingCardsForOutput.value = result.pendingCards
+    missingCardsForOutput.value = result.missingCards
+
+    // Track if output is partial (has pending suggestions or missing cards)
+    isPartialOutput.value = result.pendingCards.length > 0 || result.missingCards.length > 0
   } catch (err) {
     console.error('Failed to generate normalized output:', err)
   }
@@ -130,8 +174,11 @@ function handleAcceptSuggestion(suggestion: CardSuggestion) {
   updateIndexWithSuggestion(suggestion.suggestedCard)
 
   // Apply the suggestion to the input text
-  // When all suggestions are resolved, the callback will trigger handleFinalizeDeck
+  // This also triggers handleFinalizeDeck when all suggestions are resolved
   suggestions.applySuggestion(suggestion)
+
+  // Immediately regenerate output with the updated state
+  handleFinalizeDeck()
 }
 
 /**
@@ -140,7 +187,10 @@ function handleAcceptSuggestion(suggestion: CardSuggestion) {
 function handleRejectSuggestion(searchedName: string) {
   suggestions.dismissSuggestion(searchedName)
   // When all suggestions are dismissed, the callback will trigger handleFinalizeDeck
-  // Rejected cards will appear in the "missing cards" section
+  // Rejected cards will appear as # MISSING in the output
+  
+  // Immediately regenerate output to show rejected card as missing
+  handleFinalizeDeck()
 }
 
 // ============================================
@@ -281,6 +331,9 @@ function copyToClipboard() {
             v-if="normalizedOutput"
             :output="normalizedOutput"
             :copied="copied"
+            :is-partial="isPartialOutput"
+            :pending-cards="pendingCardsForOutput"
+            :missing-cards="missingCardsForOutput"
             @copy="copyToClipboard"
           />
 
