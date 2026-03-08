@@ -26,6 +26,7 @@ export interface FetchResultWithConfidence {
   suggestionGroup: SuggestionGroup
   totalCards: number
   nameMappings: Record<string, string>
+  missingCardNames: string[] // Cards that couldn't be found at all (no suggestions)
   performance?: PerformanceStats
 }
 
@@ -115,6 +116,7 @@ export async function fetchScryfallDataWithConfidence(
       },
       totalCards: exactMatches.length,
       nameMappings: data.nameMappings,
+      missingCardNames: data.missing || [], // Cards that couldn't be found (no suggestions)
       performance: data.performance
     }
   } catch (error) {
@@ -140,7 +142,8 @@ export async function fetchScryfallDataWithConfidence(
         }))
       },
       totalCards: 0,
-      nameMappings: {}
+      nameMappings: {},
+      missingCardNames: [] // No missing cards in error state
     }
   }
 }
