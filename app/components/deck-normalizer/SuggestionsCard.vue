@@ -75,7 +75,7 @@ function handleAcceptAll() {
         color="success"
         icon="i-lucide-check-check"
         class="cursor-pointer"
-        @click="handleAcceptAll"
+        @click.stop="handleAcceptAll"
       >
         Accetta suggerimenti
       </UButton>

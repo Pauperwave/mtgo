@@ -184,7 +184,7 @@ function handleAcceptAllSuggestions(allSuggestions: CardSuggestion[]) {
     // Apply the suggestion to the input text
     suggestions.applySuggestion(suggestion)
   }
-  
+
   // Regenerate output once after all suggestions are applied
   handleFinalizeDeck()
 }
@@ -196,7 +196,7 @@ function handleRejectSuggestion(searchedName: string) {
   suggestions.dismissSuggestion(searchedName)
   // When all suggestions are dismissed, the callback will trigger handleFinalizeDeck
   // Rejected cards will be marked as missing and highlighted in red in the output
-  
+
   // Immediately regenerate output to show rejected card as missing
   handleFinalizeDeck()
 }

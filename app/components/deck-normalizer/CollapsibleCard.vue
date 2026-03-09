@@ -2,76 +2,36 @@
 interface Props {
   color?: 'neutral' | 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error'
   borderClass?: string
-  defaultCollapsed?: boolean
+  defaultOpen?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   color: 'neutral',
   borderClass: '',
-  defaultCollapsed: false
+  defaultOpen: true
 })
 
-const isCollapsed = ref(props.defaultCollapsed)
+// defineModel senza default, poi inizializzi manualmente
+const isOpen = defineModel<boolean>('open')
 
-const ariaLabel = computed(() => 
-  isCollapsed.value ? 'Expand card' : 'Collapse card'
-)
-
-function toggleCollapse() {
-  isCollapsed.value = !isCollapsed.value
+// Inizializza se non è stato passato un v-model dal parent
+if (isOpen.value === undefined) {
+  isOpen.value = props.defaultOpen
 }
+
+const ariaLabel = computed(() =>
+  isOpen.value ? 'Collapse card' : 'Expand card'
+)
 </script>
 
 <template>
-  <Transition
-    enter-active-class="transition-all duration-200 ease-out"
-    enter-from-class="opacity-0 scale-95"
-    enter-to-class="opacity-100 scale-100"
-    leave-active-class="transition-all duration-150 ease-in"
-    leave-from-class="opacity-100 scale-100"
-    leave-to-class="opacity-0 scale-95"
-    mode="out-in"
+  <UCard
+    :color="color"
+    :class="borderClass"
   >
-    <!-- Collapsed: matches UCard outline variant -->
-    <div
-      v-if="isCollapsed"
-      key="collapsed"
-      class="rounded-lg cursor-pointer transition-colors ring-1 ring-default bg-default hover:bg-elevated"
-      :class="borderClass"
-      @click="toggleCollapse"
-    >
-      <div class="p-4 sm:px-6 flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <slot name="header-icon" />
-          <h2 class="text-lg font-semibold">
-            <slot name="header-title" />
-          </h2>
-          <slot name="header-badge" />
-        </div>
-
-        <div class="flex items-center gap-2">
-          <slot name="header-actions" />
-          <UButton
-            icon="i-lucide-chevron-down"
-            :aria-label="ariaLabel"
-            size="xs"
-            variant="ghost"
-            color="neutral"
-            class="transition-transform duration-200 cursor-pointer"
-            @click.stop="toggleCollapse"
-          />
-        </div>
-      </div>
-    </div>
-
-    <!-- Expanded: full UCard -->
-    <UCard
-      v-else
-      key="expanded"
-      :color="color"
-      :class="borderClass"
-    >
-      <template #header>
+    <template #header>
+      <UCollapsible v-model:open="isOpen">
+        <!-- Header sempre visibile -->
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
             <slot name="header-icon" />
@@ -84,19 +44,23 @@ function toggleCollapse() {
           <div class="flex items-center gap-2">
             <slot name="header-actions" />
             <UButton
-              icon="i-lucide-chevron-up"
+              :icon="isOpen ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
               :aria-label="ariaLabel"
               size="xs"
               variant="ghost"
               color="neutral"
-              class="transition-transform duration-200 cursor-pointer"
-              @click="toggleCollapse"
+              class="transition-transform duration-200"
             />
           </div>
         </div>
-      </template>
 
-      <slot />
-    </UCard>
-  </Transition>
+        <!-- Content collassabile -->
+        <template #content>
+          <div class="pt-4">
+            <slot />
+          </div>
+        </template>
+      </UCollapsible>
+    </template>
+  </UCard>
 </template>
