@@ -50,7 +50,6 @@ Sideboard
 </script>
 
 <template>
-  <!-- ========== TEST BUTTONS - REMOVE LATER ========== -->
   <div class="flex gap-2">
     <UButton
       icon="i-lucide-flask-conical"
@@ -73,5 +72,4 @@ Sideboard
       Test: Walls Combo
     </UButton>
   </div>
-  <!-- ========== END TEST BUTTONS ========== -->
 </template>

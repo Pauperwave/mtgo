@@ -70,6 +70,7 @@ function handleLoadDeck(deckText: string) {
         {{ isLoading ? 'Normalizzazione in corso...' : 'Normalizza Mazzo' }}
       </UButton>
 
+      <!-- TEST BUTTONS - REMOVE LATER -->
       <TestDeckPresets @load-deck="handleLoadDeck" />
 
       <UTextarea
