@@ -25,20 +25,19 @@ defineProps<Props>()
         <UBadge
           :color="completedCount === totalCount ? 'success' : 'neutral'"
           variant="subtle"
-        >
-          {{ completedCount }}/{{ totalCount }}
-        </UBadge>
+          :label="`${completedCount}/${totalCount}`"
+        />
       </div>
     </template>
 
     <div class="space-y-3">
       <!-- Progress Bar -->
-      <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-        <div
-          class="bg-primary h-2 rounded-full transition-all duration-500 ease-out"
-          :style="{ width: `${(completedCount / totalCount) * 100}%` }"
-        />
-      </div>
+      <UProgress
+        :model-value="completedCount"
+        :max="totalCount"
+        color="primary"
+        size="sm"
+      />
 
       <!-- Checklist Items -->
       <ul class="space-y-2 text-sm">
@@ -59,7 +58,7 @@ defineProps<Props>()
             <span
               :class="[
                 'transition-colors',
-                item.completed.value ? 'text-default' : 'text-muted'
+                item.completed.value ? 'text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400'
               ]"
             >
               {{ item.label }}
@@ -86,7 +85,7 @@ defineProps<Props>()
               <span
                 :class="[
                   'text-xs transition-colors',
-                  child.completed.value ? 'text-default' : 'text-muted'
+                  child.completed.value ? 'text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400'
                 ]"
               >
                 {{ child.label }}
@@ -97,18 +96,14 @@ defineProps<Props>()
       </ul>
 
       <!-- Completion Message -->
-      <div
+      <UAlert
         v-if="completedCount === totalCount"
-        class="mt-4 p-3 bg-success/10 border border-success/20 rounded-lg flex items-center gap-2"
-      >
-        <UIcon
-          name="i-lucide-party-popper"
-          class="size-5 text-success shrink-0"
-        />
-        <span class="text-sm text-success font-medium">
-          Complimenti! Hai completato tutti i passaggi.
-        </span>
-      </div>
+        color="success"
+        variant="soft"
+        icon="i-lucide-party-popper"
+        title="Complimenti! Hai completato tutti i passaggi."
+        class="mt-4"
+      />
     </div>
   </UCard>
 </template>
