@@ -10,24 +10,27 @@ defineProps<Props>()
 </script>
 
 <template>
-  <UCard>
-    <template #header>
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <UIcon
-            name="i-lucide-list-checks"
-            class="size-5 text-primary"
-          />
-          <h3 class="text-sm font-semibold">
-            Progresso
-          </h3>
-        </div>
-        <UBadge
-          :color="completedCount === totalCount ? 'success' : 'neutral'"
-          variant="subtle"
-          :label="`${completedCount}/${totalCount}`"
-        />
-      </div>
+  <CollapsibleCard
+    color="neutral"
+    :default-open="false"
+  >
+    <template #header-icon>
+      <UIcon
+        name="i-lucide-list-checks"
+        class="size-5 text-primary"
+      />
+    </template>
+
+    <template #header-title>
+      Progresso
+    </template>
+
+    <template #header-badge>
+      <UBadge
+        :color="completedCount === totalCount ? 'success' : 'neutral'"
+        variant="subtle"
+        :label="`${completedCount}/${totalCount}`"
+      />
     </template>
 
     <div class="space-y-3">
@@ -105,5 +108,5 @@ defineProps<Props>()
         class="mt-4"
       />
     </div>
-  </UCard>
+  </CollapsibleCard>
 </template>
