@@ -41,16 +41,14 @@ function handleLoadDeck(deckText: string) {
             v-if="modelValue.trim()"
             color="neutral"
             variant="subtle"
-          >
-            {{ lineCount }} righe
-          </UBadge>
+            :label="`${lineCount} righe`"
+          />
           <UButton
             icon="i-lucide-trash-2"
             color="error"
             variant="subtle"
             :disabled="!modelValue.trim()"
             aria-label="Svuota input"
-            class="cursor-pointer"
             @click="emit('update:modelValue', '')"
           />
         </div>
@@ -64,7 +62,6 @@ function handleLoadDeck(deckText: string) {
         block
         :loading="isLoading"
         :disabled="!modelValue.trim()"
-        class="cursor-pointer"
         @click="emit('normalize')"
       >
         {{ isLoading ? 'Normalizzazione in corso...' : 'Normalizza Mazzo' }}
@@ -81,7 +78,7 @@ function handleLoadDeck(deckText: string) {
         size="lg"
         autofocus
         placeholder="Incolla la lista del tuo mazzo qui..."
-        class="font-mono w-full"
+        :ui="{ base: 'font-mono' }"
       />
     </div>
   </UCard>
