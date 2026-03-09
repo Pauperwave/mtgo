@@ -19,14 +19,14 @@ const emit = defineEmits<Emits>()
 // Group suggestions by searched name
 const groupedSuggestions = computed(() => {
   const groups = new Map<string, CardSuggestion[]>()
-  
+
   for (const suggestion of props.suggestions) {
     if (!groups.has(suggestion.searchedName)) {
       groups.set(suggestion.searchedName, [])
     }
     groups.get(suggestion.searchedName)!.push(suggestion)
   }
-  
+
   return Array.from(groups.entries())
 })
 

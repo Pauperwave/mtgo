@@ -19,21 +19,21 @@ const emit = defineEmits<Emits>()
 // Computed for warning message based on actual arrays
 const warningMessage = computed(() => {
   if (!props.isPartial) return ''
-  
+
   const parts: string[] = []
-  
+
   // Count pending cards
   const pendingCount = props.pendingCards?.length || 0
   if (pendingCount > 0) {
     parts.push(`${pendingCount} ${pendingCount === 1 ? 'carta in attesa' : 'carte in attesa'} di conferma`)
   }
-  
+
   // Count missing cards
   const missingCount = props.missingCards?.length || 0
   if (missingCount > 0) {
     parts.push(`${missingCount} ${missingCount === 1 ? 'carta non trovata' : 'carte non trovate'}`)
   }
-  
+
   return parts.join(', ')
 })
 
@@ -57,20 +57,20 @@ interface OutputLine {
 const styledLines = computed(() => {
   const lines: OutputLine[] = []
   const outputLines = props.output.split('\n')
-  
+
   for (const line of outputLines) {
     const trimmed = line.trim()
-    
+
     // Check if it's a section header (ends with 's' or 'y' and no number at start)
     const isSection = /^[A-Z]/.test(trimmed) && !/^\d/.test(trimmed)
-    
+
     // Extract card name from line like "4 Card Name"
     const match = trimmed.match(/^\d+\s+(.+)$/)
     const cardName = match ? match[1] : null
-    
+
     const isPending = cardName ? pendingCardNames.value.has(cardName) : false
     const isMissing = cardName ? missingCardNames.value.has(cardName) : false
-    
+
     lines.push({
       text: line,
       isPending,
@@ -78,10 +78,9 @@ const styledLines = computed(() => {
       isSection
     })
   }
-  
+
   return lines
 })
-
 </script>
 
 <template>
@@ -104,7 +103,7 @@ const styledLines = computed(() => {
         color="success"
         :icon="copied ? 'i-lucide-check' : 'i-lucide-copy'"
         class="cursor-pointer"
-        @click="emit('copy')"
+        @click.stop="emit('copy')"
       >
         {{ copied ? 'Copiato!' : 'Copia' }}
       </UButton>
@@ -122,8 +121,8 @@ const styledLines = computed(() => {
       />
 
       <div class="rounded-lg overflow-y-auto">
-        <pre class="text-sm font-mono whitespace-pre-wrap"><span 
-          v-for="(line, index) in styledLines" 
+        <pre class="text-sm font-mono whitespace-pre-wrap"><span
+          v-for="(line, index) in styledLines"
           :key="index"
           :class="{
             'text-warning': line.isPending,
