@@ -20,7 +20,7 @@ let dbInstance: DatabaseInstance | null = null
 export async function getDatabase(readonly = true): Promise<DatabaseInstance | null> {
   if (!dbInstance) {
     const dbPath = join(process.cwd(), 'server', 'database', 'cards.db')
-    
+
     try {
       // Check if we're running in Bun
       // @ts-expect-error - Bun global is available in Bun runtime
@@ -28,7 +28,7 @@ export async function getDatabase(readonly = true): Promise<DatabaseInstance | n
         const bunSqliteModuleId = 'bun:sqlite'
         const { Database } = await import(/* @vite-ignore */ bunSqliteModuleId)
         dbInstance = new Database(dbPath, { readonly })
-        console.log('✅ Using bun:sqlite (faster)')
+        // console.log('✅ Using bun:sqlite (faster)')
       } else {
         throw new Error('Not Bun runtime')
       }
@@ -37,7 +37,7 @@ export async function getDatabase(readonly = true): Promise<DatabaseInstance | n
       try {
         const Database = (await import('better-sqlite3')).default
         dbInstance = new Database(dbPath, { readonly })
-        console.log('⚠️ Using better-sqlite3 (Node.js compatibility fallback)')
+        // console.log('⚠️ Using better-sqlite3 (Node.js compatibility fallback)')
       } catch (sqliteError) {
         // SQLite unavailable (e.g., serverless environment without native modules)
         console.warn('⚠️ SQLite database unavailable - running in Scryfall-only mode')
@@ -86,11 +86,11 @@ export function normalizeCardName(name: string): string {
 export async function getCardByName(name: string): Promise<Card | null> {
   const db = await getDatabase()
   if (!db) return null
-  
+
   const row = db.prepare(`
     SELECT * FROM cards WHERE name = ? LIMIT 1
   `).get(name)
-  
+
   return row || null
 }
 
@@ -100,15 +100,15 @@ export async function getCardByName(name: string): Promise<Card | null> {
 export async function getCardByNormalizedName(inputName: string): Promise<Card | null> {
   const db = await getDatabase()
   if (!db) return null
-  
+
   const normalized = normalizeCardName(inputName)
-  
+
   const row = db.prepare(`
     SELECT * FROM cards 
     WHERE name_normalized = ? 
     LIMIT 1
   `).get(normalized)
-  
+
   return row || null
 }
 
@@ -118,18 +118,18 @@ export async function getCardByNormalizedName(inputName: string): Promise<Card |
 export async function getCardsByNames(names: string[]): Promise<Map<string, Card>> {
   const result = new Map<string, Card>()
   if (names.length === 0) return result
-  
+
   const db = await getDatabase()
   if (!db) return result
-  
+
   const placeholders = names.map(() => '?').join(',')
   const query = `SELECT * FROM cards WHERE name IN (${placeholders})`
   const rows = db.prepare(query).all(...names)
-  
+
   for (const row of rows) {
     result.set(row.name, row)
   }
-  
+
   return result
 }
 
@@ -140,21 +140,21 @@ export async function getCardsByNames(names: string[]): Promise<Map<string, Card
 export async function getCardsByNormalizedNames(inputNames: string[]): Promise<Map<string, Card>> {
   const result = new Map<string, Card>()
   if (inputNames.length === 0) return result
-  
+
   const db = await getDatabase()
   if (!db) return result
-  
+
   // Create map of normalized -> original input
   const normalizedMap = new Map<string, string>()
   for (const name of inputNames) {
     normalizedMap.set(normalizeCardName(name), name)
   }
-  
+
   const normalizedNames = Array.from(normalizedMap.keys())
   const placeholders = normalizedNames.map(() => '?').join(',')
   const query = `SELECT * FROM cards WHERE name_normalized IN (${placeholders})`
   const rows = db.prepare(query).all(...normalizedNames)
-  
+
   // Map back to original input names
   for (const row of rows) {
     const inputName = normalizedMap.get(row.name_normalized)
@@ -162,7 +162,7 @@ export async function getCardsByNormalizedNames(inputNames: string[]): Promise<M
       result.set(inputName, row)
     }
   }
-  
+
   return result
 }
 
@@ -172,11 +172,11 @@ export async function getCardsByNormalizedNames(inputNames: string[]): Promise<M
 export async function getNameMapping(inputName: string): Promise<NameMapping | null> {
   const db = await getDatabase()
   if (!db) return null
-  
+
   const row = db.prepare(`
     SELECT * FROM name_mappings WHERE input_name = ? LIMIT 1
   `).get(inputName)
-  
+
   return row || null
 }
 
@@ -190,14 +190,14 @@ export async function upsertNameMapping(inputName: string, canonicalName: string
     // In dev mode, the shared readonly connection may prevent writes
     const db = await getDatabase(false) // Request write access
     if (!db) {
-      console.debug('Name mapping tracking skipped (database unavailable):', inputName, '→', canonicalName)
+      // console.debug('Name mapping tracking skipped (database unavailable):', inputName, '→', canonicalName)
       return
     }
-    
+
     const normalizedInput = normalizeCardName(inputName)
     const normalizedCanonical = normalizeCardName(canonicalName)
     const now = new Date().toISOString()
-    
+
     db.prepare(`
       INSERT INTO name_mappings (input_name, canonical_name, normalized_input, normalized_canonical, hit_count, first_seen, last_seen)
       VALUES (?, ?, ?, ?, 1, ?, ?)
@@ -208,7 +208,7 @@ export async function upsertNameMapping(inputName: string, canonicalName: string
   } catch (error) {
     // Silently fail in readonly mode - name mapping tracking is non-critical
     // The core functionality (card lookups) still works fine
-    console.debug('Name mapping tracking skipped (readonly database):', inputName, '→', canonicalName)
+    // console.debug('Name mapping tracking skipped (readonly database):', inputName, '→', canonicalName)
   }
 }
 
@@ -218,11 +218,11 @@ export async function upsertNameMapping(inputName: string, canonicalName: string
 export async function getMetadata(key: string): Promise<string | null> {
   const db = await getDatabase()
   if (!db) return null
-  
+
   const row = db.prepare(`
     SELECT value FROM metadata WHERE key = ? LIMIT 1
   `).get(key)
-  
+
   return row ? row.value : null
 }
 
@@ -232,10 +232,10 @@ export async function getMetadata(key: string): Promise<string | null> {
 export async function setMetadata(key: string, value: string): Promise<void> {
   const db = await getDatabase(false) // Need write access
   if (!db) {
-    console.debug('Metadata update skipped (database unavailable):', key)
+    // console.debug('Metadata update skipped (database unavailable):', key)
     return
   }
-  
+
   db.prepare(`
     INSERT INTO metadata (key, value)
     VALUES (?, ?)
@@ -249,11 +249,11 @@ export async function setMetadata(key: string, value: string): Promise<void> {
 export async function getPauperCardsCount(): Promise<number> {
   const db = await getDatabase()
   if (!db) return 0
-  
+
   const row = db.prepare(`
     SELECT COUNT(*) as count FROM cards
   `).get()
-  
+
   return row ? row.count : 0
 }
 
@@ -278,16 +278,16 @@ export function levenshteinDistance(str1: string, str2: string): number {
   const m = str1.length
   const n = str2.length
   const dp: number[][] = []
-  
+
   for (let i = 0; i <= n; i++) {
     dp[i] = []
     dp[i]![0] = i
   }
-  
+
   for (let j = 0; j <= m; j++) {
     dp[0]![j] = j
   }
-  
+
   for (let i = 1; i <= n; i++) {
     for (let j = 1; j <= m; j++) {
       if (str2[i - 1] === str1[j - 1]) {
@@ -301,7 +301,7 @@ export function levenshteinDistance(str1: string, str2: string): number {
       }
     }
   }
-  
+
   return dp[n]![m]!
 }
 
@@ -313,14 +313,14 @@ export function levenshteinDistance(str1: string, str2: string): number {
 function calculateWordOverlap(str1: string, str2: string): number {
   const words1 = str1.toLowerCase().split(/\s+/)
   const words2 = str2.toLowerCase().split(/\s+/)
-  
+
   let matchingWords = 0
   for (const word1 of words1) {
     if (words2.some(word2 => word2.startsWith(word1) || word1.startsWith(word2))) {
       matchingWords++
     }
   }
-  
+
   return matchingWords / Math.max(words1.length, words2.length)
 }
 
@@ -337,7 +337,7 @@ export interface FuzzyMatch {
  * Find cards using fuzzy name matching
  * Returns top N matches sorted by similarity (best first)
  * Returns empty array if database is unavailable
- * 
+ *
  * @param inputName - The misspelled or partial card name
  * @param maxResults - Maximum number of results to return (default 5)
  * @param minSimilarity - Minimum similarity threshold 0-1 (default 0.6)
@@ -350,27 +350,27 @@ export async function findCardsByFuzzyName(
 ): Promise<FuzzyMatch[]> {
   const db = await getDatabase()
   if (!db) return []
-  
+
   const normalized = normalizeCardName(inputName)
-  
+
   // Get all cards from database
   // For better performance with large datasets, we could add LIKE pre-filtering
   const allCards = db.prepare(`SELECT * FROM cards`).all() as Card[]
-  
+
   const matches: FuzzyMatch[] = []
-  
+
   for (const card of allCards) {
     const cardNormalized = normalizeCardName(card.name)
     const distance = levenshteinDistance(normalized, cardNormalized)
     const maxLength = Math.max(normalized.length, cardNormalized.length)
     const similarity = 1 - (distance / maxLength)
-    
+
     // Only include results above similarity threshold
     if (similarity >= minSimilarity) {
       matches.push({ card, distance, similarity })
     }
   }
-  
+
   // Sort by:
   // 1. Similarity (best first)
   // 2. Word overlap (more matching words first)
@@ -380,21 +380,21 @@ export async function findCardsByFuzzyName(
     // Primary: similarity
     const simDiff = b.similarity - a.similarity
     if (Math.abs(simDiff) > 0.001) return simDiff
-    
+
     // Secondary: word overlap (prefer cards sharing words with search term)
     const overlapA = calculateWordOverlap(normalized, normalizeCardName(a.card.name))
     const overlapB = calculateWordOverlap(normalized, normalizeCardName(b.card.name))
     const overlapDiff = overlapB - overlapA
     if (Math.abs(overlapDiff) > 0.001) return overlapDiff
-    
+
     // Tertiary: distance
     const distDiff = a.distance - b.distance
     if (distDiff !== 0) return distDiff
-    
+
     // Last resort: alphabetical
     return a.card.name.localeCompare(b.card.name)
   })
-  
+
   // Return top N results
   return matches.slice(0, maxResults)
 }

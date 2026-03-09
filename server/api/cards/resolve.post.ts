@@ -1,8 +1,8 @@
 /**
  * POST /api/cards/resolve
- * 
+ *
  * Resolves card names to full card data using hybrid SQLite + Scryfall approach.
- * 
+ *
  * Strategy:
  * 1. Look up all cards in local SQLite database (normalized names)
  * 2. For any missing cards, batch fetch from Scryfall Collection API
@@ -11,8 +11,8 @@
  */
 
 import type { ResolveCardsRequest, ResolveCardsResponse, Card, ScryfallCard, FuzzySuggestion } from '../../../shared/types'
-import { 
-  getCardsByNormalizedNames, 
+import {
+  getCardsByNormalizedNames,
   upsertNameMapping,
   findCardsByFuzzyName,
   normalizeCardName,
@@ -66,7 +66,7 @@ function getFrontFace(name: string): string {
  */
 async function fetchMissingCardsFromScryfall(missingNames: string[]): Promise<Map<string, Card>> {
   const result = new Map<string, Card>()
-  
+
   if (missingNames.length === 0) {
     return result
   }
@@ -74,7 +74,7 @@ async function fetchMissingCardsFromScryfall(missingNames: string[]): Promise<Ma
   // Scryfall Collection API accepts max 75 identifiers per request
   const BATCH_SIZE = 75
   const batches: string[][] = []
-  
+
   for (let i = 0; i < missingNames.length; i += BATCH_SIZE) {
     batches.push(missingNames.slice(i, i + BATCH_SIZE))
   }
@@ -83,7 +83,7 @@ async function fetchMissingCardsFromScryfall(missingNames: string[]): Promise<Ma
   for (const batch of batches) {
     try {
       const identifiers = batch.map(name => ({ name }))
-      
+
       const response = await fetch(SCRYFALL_COLLECTION_API, {
         method: 'POST',
         headers: {
@@ -93,24 +93,24 @@ async function fetchMissingCardsFromScryfall(missingNames: string[]): Promise<Ma
       })
 
       if (!response.ok) {
-        console.error(`Scryfall API error: ${response.status} ${response.statusText}`)
+        // console.error(`Scryfall API error: ${response.status} ${response.statusText}`)
         continue
       }
 
       const data = await response.json()
-      
+
       // Map found cards
       if (data.data && Array.isArray(data.data)) {
         for (const scryfallCard of data.data as ScryfallCard[]) {
           const card = scryfallToCard(scryfallCard)
-          
+
           // Find which input name matched this card
           // Use normalized comparison to handle diacritics (û, ö, etc.), hyphens, and apostrophes
-          const matchingInputName = batch.find(name => 
-            normalizeCardName(name) === normalizeCardName(scryfallCard.name) ||
-            (name.includes('//') && normalizeCardName(getFrontFace(name)) === normalizeCardName(getFrontFace(scryfallCard.name)))
+          const matchingInputName = batch.find(name =>
+            normalizeCardName(name) === normalizeCardName(scryfallCard.name)
+            || (name.includes('//') && normalizeCardName(getFrontFace(name)) === normalizeCardName(getFrontFace(scryfallCard.name)))
           )
-          
+
           if (matchingInputName) {
             result.set(matchingInputName, card)
           }
@@ -120,25 +120,25 @@ async function fetchMissingCardsFromScryfall(missingNames: string[]): Promise<Ma
       // Handle not_found entries - retry with front face for DFC cards
       if (data.not_found && Array.isArray(data.not_found)) {
         const dfcRetries: Array<{ originalName: string, frontFace: string }> = []
-        
+
         for (const notFound of data.not_found) {
           const name = notFound.name
-          
+
           // If the name contains '//', it might be a DFC card - try searching by front face only
           if (name.includes('//')) {
             const frontFace = getFrontFace(name)
             dfcRetries.push({ originalName: name, frontFace })
           } else {
-            console.warn(`Card not found on Scryfall: ${name}`)
+            // console.warn(`Card not found on Scryfall: ${name}`)
           }
         }
-        
+
         // Retry DFC cards with front face only
         if (dfcRetries.length > 0) {
-          console.log(`🔄 Retrying ${dfcRetries.length} DFC card(s) with front face only:`, dfcRetries.map(r => `"${r.originalName}" → "${r.frontFace}"`).join(', '))
-          
+          // console.log(`🔄 Retrying ${dfcRetries.length} DFC card(s) with front face only:`, dfcRetries.map(r => `"${r.originalName}" → "${r.frontFace}"`).join(', '))
+
           const retryIdentifiers = dfcRetries.map(r => ({ name: r.frontFace }))
-          
+
           const retryResponse = await fetch(SCRYFALL_COLLECTION_API, {
             method: 'POST',
             headers: {
@@ -146,33 +146,33 @@ async function fetchMissingCardsFromScryfall(missingNames: string[]): Promise<Ma
             },
             body: JSON.stringify({ identifiers: retryIdentifiers })
           })
-          
+
           if (retryResponse.ok) {
             const retryData = await retryResponse.json()
-            
-            console.log(`📦 Retry response: found ${retryData.data?.length || 0} card(s), not_found ${retryData.not_found?.length || 0}`)
-            
+
+            // console.log(`📦 Retry response: found ${retryData.data?.length || 0} card(s), not_found ${retryData.not_found?.length || 0}`)
+
             if (retryData.data && Array.isArray(retryData.data)) {
               for (const scryfallCard of retryData.data as ScryfallCard[]) {
                 const card = scryfallToCard(scryfallCard)
-                
+
                 // Match back to original input name using normalized comparison
-                const matchingRetry = dfcRetries.find(r => 
+                const matchingRetry = dfcRetries.find(r =>
                   normalizeCardName(r.frontFace) === normalizeCardName(getFrontFace(scryfallCard.name))
                 )
-                
+
                 if (matchingRetry) {
                   result.set(matchingRetry.originalName, card)
-                  console.log(`  ✓ Found DFC card "${matchingRetry.originalName}" by front face search → "${card.name}"`)
+                  // console.log(`  ✅ Found DFC card "${matchingRetry.originalName}" by front face search → "${card.name}"`)
                 }
               }
             }
-            
+
             if (retryData.not_found && retryData.not_found.length > 0) {
-              console.warn(`  ✗ Still not found after retry:`, retryData.not_found.map((nf: any) => nf.name).join(', '))
+              // console.warn(`  ❌ Still not found after retry:`, retryData.not_found.map((nf: any) => nf.name).join(', '))
             }
           } else {
-            console.error(`❌ DFC retry request failed: ${retryResponse.status} ${retryResponse.statusText}`)
+            // console.error(`❌ DFC retry request failed: ${retryResponse.status} ${retryResponse.statusText}`)
           }
         }
       }
@@ -182,7 +182,7 @@ async function fetchMissingCardsFromScryfall(missingNames: string[]): Promise<Ma
         await new Promise(resolve => setTimeout(resolve, 100))
       }
     } catch (error) {
-      console.error('Error fetching from Scryfall:', error)
+      // console.error('Error fetching from Scryfall:', error)
     }
   }
 
@@ -191,11 +191,11 @@ async function fetchMissingCardsFromScryfall(missingNames: string[]): Promise<Ma
 
 export default defineEventHandler(async (event): Promise<ResolveCardsResponse> => {
   const startTime = Date.now()
-  
+
   try {
     // Parse request body
     const body = await readBody<ResolveCardsRequest>(event)
-    
+
     if (!body.names || !Array.isArray(body.names)) {
       throw createError({
         statusCode: 400,
@@ -207,7 +207,7 @@ export default defineEventHandler(async (event): Promise<ResolveCardsResponse> =
     const cards: Card[] = []
     const nameMappings: Record<string, string> = {}
     const missing: string[] = []
-    
+
     // Performance tracking
     let databaseHits = 0
     let scryfallRequests = 0
@@ -218,16 +218,16 @@ export default defineEventHandler(async (event): Promise<ResolveCardsResponse> =
 
     // Step 2: Separate found vs missing
     const missingNames: string[] = []
-    
+
     for (const inputName of inputNames) {
       const card = dbCards.get(inputName)
-      
+
       if (card) {
         // Found in database
         cards.push(card)
         nameMappings[inputName] = card.name
         databaseHits++
-        
+
         // Track name mapping (increment hit count)
         if (inputName !== card.name) {
           await upsertNameMapping(inputName, card.name)
@@ -240,31 +240,31 @@ export default defineEventHandler(async (event): Promise<ResolveCardsResponse> =
 
     // Step 3: Fetch missing cards from Scryfall (batch)
     if (missingNames.length > 0) {
-      console.log(`Fetching ${missingNames.length} missing cards from Scryfall...`)
-      console.log(`  Names: ${missingNames.join(', ')}`)
-      
+      // console.log(`Fetching ${missingNames.length} missing cards from Scryfall...`)
+      // console.log(`  Names: ${missingNames.join(', ')}`)
+
       const scryfallCards = await fetchMissingCardsFromScryfall(missingNames)
       scryfallRequests = scryfallCards.size
-      
-      console.log(`  Scryfall returned ${scryfallCards.size} card(s)`)
-      
+
+      // console.log(`  Scryfall returned ${scryfallCards.size} card(s)`)
+
       for (const [inputName, card] of scryfallCards.entries()) {
         cards.push(card)
         nameMappings[inputName] = card.name
-        
-        console.log(`  ✓ Mapped: "${inputName}" → "${card.name}"`)
-        
+
+        console.info(`  ✅ Mapped: "${inputName}" → "${card.name}"`)
+
         // Track name mapping
         if (inputName !== card.name) {
           await upsertNameMapping(inputName, card.name)
         }
       }
-      
+
       // Any still missing after Scryfall fetch
       for (const name of missingNames) {
         if (!scryfallCards.has(name)) {
           missing.push(name)
-          console.warn(`  ✗ Still missing after Scryfall: "${name}"`)
+          console.warn(`  ❌ Still missing after Scryfall: "${name}"`)
         }
       }
     }
@@ -274,44 +274,44 @@ export default defineEventHandler(async (event): Promise<ResolveCardsResponse> =
     const resolvedFromFuzzy = new Set<string>() // Track cards resolved via fuzzy search
     let scryfallFuzzyRequests = 0
     if (missing.length > 0) {
-      console.log(`Performing fuzzy search for ${missing.length} missing ${missing.length === 1 ? 'card' : 'cards'}...`)
-      
+      // console.log(`Performing fuzzy search for ${missing.length} missing ${missing.length === 1 ? 'card' : 'cards'}...`)
+
       // Iterate over a copy of the array to avoid modification issues
       for (const missingName of [...missing]) {
         const suggestions: Array<{ card: Card, distance: number, similarity: number }> = []
-        
+
         // Try Scryfall's fuzzy search first (best match)
         try {
           const scryfallUrl = `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(missingName)}`
           const response = await fetch(scryfallUrl)
-          scryfallFuzzyRequests++ // Track fuzzy API calls
-          
+          scryfallFuzzyRequests++
+
           if (response.ok) {
             const scryfallCard = await response.json() as ScryfallCard
             const card = scryfallToCard(scryfallCard)
-            
+
             // Calculate distance for display
             const normalized = normalizeCardName(missingName)
             const cardNormalized = normalizeCardName(card.name)
             const distance = levenshteinDistance(normalized, cardNormalized)
             const maxLength = Math.max(normalized.length, cardNormalized.length)
             const similarity = 1 - (distance / maxLength)
-            
+
             suggestions.push({ card, distance, similarity })
-            console.log(`  ✓ Scryfall fuzzy: "${missingName}" → "${card.name}" (similarity: ${similarity.toFixed(2)})`)
+            console.info(`  ✅ Scryfall fuzzy: "${missingName}" → "${card.name}" (similarity: ${similarity.toFixed(2)})`)
           } else {
             // Log non-OK responses for debugging (404 means Scryfall couldn't fuzzy match)
-            console.warn(`  ✗ Scryfall fuzzy API returned ${response.status} ${response.statusText} for "${missingName}"`)
+            console.warn(`  ❌ Scryfall fuzzy API returned ${response.status} ${response.statusText} for "${missingName}"`)
           }
         } catch (error) {
-          console.warn(`  ✗ Scryfall fuzzy search failed for "${missingName}":`, error)
+          console.warn(`  ❌ Scryfall fuzzy search failed for "${missingName}":`, error)
         }
-        
+
         // Supplement with local database fuzzy search (skip if we already have 5+ suggestions)
         if (suggestions.length < 5) {
           const localMatches = await findCardsByFuzzyName(missingName, 5 - suggestions.length, 0.6)
-          console.log(`  Database fuzzy search for "${missingName}": found ${localMatches.length} match(es)`)
-          
+          // console.log(`  Database fuzzy search for "${missingName}": found ${localMatches.length} match(es)`)
+
           // Filter out duplicates (cards already in suggestions)
           const existingIds = new Set(suggestions.map(s => s.card.id))
           for (const match of localMatches) {
@@ -324,47 +324,47 @@ export default defineEventHandler(async (event): Promise<ResolveCardsResponse> =
             }
           }
         }
-        
+
         if (suggestions.length > 0) {
-          console.log(`  ✓ Total: ${suggestions.length} ${suggestions.length === 1 ? 'suggestion' : 'suggestions'} for "${missingName}": ${suggestions.map(s => s.card.name).join(', ')}`)
-          
+          console.info(`  ✅ Total: ${suggestions.length} ${suggestions.length === 1 ? 'suggestion' : 'suggestions'} for "${missingName}": ${suggestions.map(s => s.card.name).join(', ')}`)
+
           // Check if the best match is perfect (auto-accept)
           const bestMatch = suggestions[0]
           if (bestMatch) {
             const isPerfectMatch = bestMatch.distance === 0 && bestMatch.similarity === 1
-            
+
             if (isPerfectMatch) {
               // Auto-accept perfect matches
-              console.log(`  ✓ Perfect match found for "${missingName}" → "${bestMatch.card.name}" (auto-accepting)`)
+              // console.log(`  ✅ Perfect match found for "${missingName}" → "${bestMatch.card.name}" (auto-accepting)`)
               cards.push(bestMatch.card)
               nameMappings[missingName] = bestMatch.card.name
-              
+
               // Mark for removal from missing array
               resolvedFromFuzzy.add(missingName)
-              
+
               // Track as database hit for stats (since it's auto-accepted)
               databaseHits++
             } else {
               // Not a perfect match - require user confirmation
               nameMappings[missingName] = bestMatch.card.name
-              
+
               fuzzySuggestions.push({
                 searchedName: missingName,
                 suggestions
               })
-              
+
               // Track as fuzzy match requiring user confirmation
               fuzzyMatches++
-              
+
               // Mark for removal from missing array since we have fuzzy suggestions for user to confirm
               resolvedFromFuzzy.add(missingName)
             }
           }
         } else {
-          console.warn(`  ✗ No fuzzy matches found for "${missingName}"`)
+          // console.warn(`  ❌ No fuzzy matches found for "${missingName}"`)
         }
       }
-      
+
       // Remove all resolved cards from missing array (after iteration completes)
       for (let i = missing.length - 1; i >= 0; i--) {
         if (resolvedFromFuzzy.has(missing[i])) {
@@ -392,10 +392,9 @@ export default defineEventHandler(async (event): Promise<ResolveCardsResponse> =
         processingTimeMs
       }
     }
-
   } catch (error) {
-    console.error('Error in /api/cards/resolve:', error)
-    
+    // console.error('Error in /api/cards/resolve:', error)
+
     throw createError({
       statusCode: 500,
       statusMessage: 'Internal Server Error',

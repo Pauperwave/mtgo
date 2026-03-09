@@ -84,19 +84,19 @@ export async function fetchScryfallDataWithConfidence(
 
     // Convert fuzzy suggestions to CardSuggestion format
     const requireConfirmation: CardSuggestion[] = []
-    
+
     for (const fuzzySuggestion of data.fuzzySuggestions || []) {
       // For each missing card, create suggestions from fuzzy matches
       for (const match of fuzzySuggestion.suggestions) {
         const scryfallCard = cardToScryfallCard(match.card)
-        
+
         // Analyze the match to determine confidence level
         const analysis = analyzeMatch(
           fuzzySuggestion.searchedName,
           scryfallCard,
           fuzzySuggestion.suggestions.length
         )
-        
+
         requireConfirmation.push({
           searchedName: fuzzySuggestion.searchedName,
           suggestedCard: scryfallCard,
@@ -120,8 +120,8 @@ export async function fetchScryfallDataWithConfidence(
       performance: data.performance
     }
   } catch (error) {
-    console.error('Failed to fetch cards from API:', error)
-    
+    // console.error('Failed to fetch cards from API:', error)
+
     // Return empty result on error
     return {
       exactMatches: [],

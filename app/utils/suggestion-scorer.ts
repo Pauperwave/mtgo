@@ -149,7 +149,7 @@ export function processSuggestions(
 ): SuggestionGroup {
   // Validate input format - handle rate-limited responses gracefully
   if (!searchResults || !Array.isArray(searchResults.data) || typeof searchResults.total_cards !== 'number') {
-    console.warn('Invalid search results format:', searchResults)
+    // console.warn('Invalid search results format:', searchResults)
     return { autoApply: [], requireConfirmation: [] }
   }
 
