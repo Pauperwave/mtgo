@@ -27,9 +27,8 @@ defineProps<Props>()
       <UBadge
         :color="validation.isValid ? 'warning' : 'error'"
         variant="subtle"
-      >
-        {{ validation.stats.mainDeckCount }} + {{ validation.stats.sideboardCount }} carte
-      </UBadge>
+        :label="`${validation.stats.mainDeckCount} + ${validation.stats.sideboardCount} carte`"
+      />
     </template>
 
     <div class="space-y-3">
@@ -81,12 +80,12 @@ defineProps<Props>()
       </div>
 
       <!-- Stats Summary -->
-      <div class="flex items-start gap-2 text-muted pt-2 border-t border-default">
+      <div class="flex items-start gap-2 text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">
         <UIcon
           name="i-lucide-info"
           class="size-4 mt-0.5 shrink-0"
         />
-        <div>
+        <div class="text-sm">
           <p><strong>Main deck:</strong> {{ validation.stats.mainDeckCount }} carte</p>
           <p><strong>Sideboard:</strong> {{ validation.stats.sideboardCount }} carte</p>
         </div>
