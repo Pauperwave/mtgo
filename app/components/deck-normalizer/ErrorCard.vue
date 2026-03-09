@@ -24,7 +24,7 @@ defineProps<Props>()
     </template>
 
     <div class="space-y-3">
-      <p class="text-sm text-muted">
+      <p class="text-sm text-gray-500 dark:text-gray-400">
         {{ message }}
       </p>
 
@@ -48,17 +48,15 @@ defineProps<Props>()
               size="xs"
               variant="soft"
               color="error"
-              icon="i-lucide-search"
-              trailing
-              class="cursor-pointer"
-            >
-              Cerca
-            </UButton>
+              trailing-icon="i-lucide-search"
+              label="Cerca"
+              external
+            />
           </li>
         </ul>
       </div>
 
-      <div class="flex items-start gap-2 text-xs text-muted">
+      <div class="flex items-start gap-2 text-xs text-gray-500 dark:text-gray-400">
         <UIcon
           name="i-lucide-lightbulb"
           class="size-4 mt-0.5 shrink-0"
