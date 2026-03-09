@@ -75,6 +75,7 @@ function handleAcceptAll() {
         color="success"
         icon="i-lucide-check-check"
         label="Accetta suggerimenti"
+        class="cursor-pointer"
         @click.stop="handleAcceptAll"
       />
     </template>
@@ -180,6 +181,7 @@ function handleAcceptAll() {
                   variant="solid"
                   icon="i-lucide-check"
                   label="Applica"
+                  class="cursor-pointer"
                   @click="emit('apply', suggestion)"
                 />
                 <UButton
@@ -188,6 +190,7 @@ function handleAcceptAll() {
                   variant="ghost"
                   icon="i-lucide-x"
                   label="Ignora"
+                  class="cursor-pointer"
                   @click="emit('dismiss', suggestion.searchedName)"
                 />
               </div>

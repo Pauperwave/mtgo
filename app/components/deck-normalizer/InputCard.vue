@@ -62,6 +62,7 @@ function handleLoadDeck(deckText: string) {
         block
         :loading="isLoading"
         :disabled="!modelValue.trim()"
+        class="cursor-pointer"
         @click="emit('normalize')"
       >
         {{ isLoading ? 'Normalizzazione in corso...' : 'Normalizza Mazzo' }}

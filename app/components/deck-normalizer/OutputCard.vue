@@ -106,6 +106,7 @@ const styledLines = computed(() => {
         color="success"
         :icon="copied ? 'i-lucide-check' : 'i-lucide-copy'"
         :label="copied ? 'Copiato!' : 'Copia'"
+        class="cursor-pointer"
         @click.stop="emit('copy')"
       />
     </template>
