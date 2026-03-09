@@ -74,14 +74,16 @@ const getPercentage = (value: number) => {
   if (props.performance.totalRequests === 0) return 0
   return (value / props.performance.totalRequests) * 100
 }
+
+const isLowHitRate = computed(() => cacheHitRate.value < 50)
 </script>
 
 <template>
   <CollapsibleCard color="neutral">
     <template #header-icon>
       <UIcon
-        name="i-lucide-gauge"
-        class="size-5 text-primary"
+        :name="isLowHitRate ? 'i-lucide-alert-triangle' : 'i-lucide-gauge'"
+        :class="isLowHitRate ? 'size-5 text-warning' : 'size-5 text-success'"
       />
     </template>
 
