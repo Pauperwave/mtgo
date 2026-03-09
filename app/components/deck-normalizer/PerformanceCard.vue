@@ -51,7 +51,7 @@ const timeStats = computed(() => ({
   label: 'Tempo',
   value: formattedTime.value,
   icon: 'i-lucide-timer',
-  textClass: 'text-purple-500'
+  textClass: 'text-purple-500 dark:text-purple-400'
 }))
 
 const cacheHitRate = computed(() => {
@@ -93,9 +93,8 @@ const getPercentage = (value: number) => {
       <UBadge
         :color="cacheHitColor"
         variant="soft"
-      >
-        {{ cacheHitRate }}% cache hit
-      </UBadge>
+        :label="`${cacheHitRate}% cache hit`"
+      />
     </template>
 
     <div class="space-y-4">
@@ -113,7 +112,7 @@ const getPercentage = (value: number) => {
               class="size-4"
               :class="stat.textClass"
             />
-            <span class="text-sm text-muted">{{ stat.label }}</span>
+            <span class="text-sm text-gray-500 dark:text-gray-400">{{ stat.label }}</span>
           </div>
           <p
             class="text-2xl font-bold"
@@ -131,7 +130,7 @@ const getPercentage = (value: number) => {
               class="size-4"
               :class="timeStats.textClass"
             />
-            <span class="text-sm text-muted">{{ timeStats.label }}</span>
+            <span class="text-sm text-gray-500 dark:text-gray-400">{{ timeStats.label }}</span>
           </div>
           <p
             class="text-2xl font-bold"
@@ -144,7 +143,7 @@ const getPercentage = (value: number) => {
 
       <!-- Progress bar con segmenti multipli -->
       <div class="space-y-2">
-        <div class="flex items-center justify-between text-xs text-muted">
+        <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
           <span>Distribuzione Richieste</span>
           <span>{{ performance.totalRequests }} totali</span>
         </div>
@@ -155,7 +154,7 @@ const getPercentage = (value: number) => {
           :aria-valuenow="performance.totalRequests"
           :aria-valuemax="performance.totalRequests"
           aria-label="Distribuzione richieste tra database, API e ricerche"
-          class="flex h-2 overflow-hidden rounded-full bg-neutral/10"
+          class="flex h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800"
         >
           <div
             v-for="stat in stats"
@@ -177,13 +176,13 @@ const getPercentage = (value: number) => {
               class="size-2 rounded-full"
               :class="stat.bgClass"
             />
-            <span class="text-muted">{{ stat.label }}</span>
+            <span class="text-gray-500 dark:text-gray-400">{{ stat.label }}</span>
           </div>
         </div>
       </div>
 
       <!-- Info note -->
-      <div class="flex items-start gap-2 text-xs text-muted">
+      <div class="flex items-start gap-2 text-xs text-gray-500 dark:text-gray-400">
         <UIcon
           name="i-lucide-info"
           class="size-4 mt-0.5 shrink-0"
