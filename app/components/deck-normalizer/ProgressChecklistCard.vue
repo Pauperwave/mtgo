@@ -39,7 +39,6 @@ defineProps<Props>()
         :model-value="completedCount"
         :max="totalCount"
         color="primary"
-        size="sm"
       />
 
       <!-- Checklist Items -->
