@@ -84,7 +84,10 @@ const styledLines = computed(() => {
 </script>
 
 <template>
-  <CollapsibleCard border-class="border-success/20">
+  <CollapsibleCard
+    border-class="border-success/20"
+    :default-open="true"
+  >
     <template #header-icon>
       <UIcon
         :name="isPartial ? 'i-lucide-alert-triangle' : 'i-lucide-file-check'"

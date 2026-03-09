@@ -8,16 +8,11 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   color: 'neutral',
   borderClass: '',
-  defaultOpen: true
+  defaultOpen: false
 })
 
-// defineModel senza default, poi inizializzi manualmente
-const isOpen = defineModel<boolean>('open')
-
-// Inizializza se non è stato passato un v-model dal parent
-if (isOpen.value === undefined) {
-  isOpen.value = props.defaultOpen
-}
+// Stato locale gestito internamente per controllare il toggle manualmente
+const isOpen = ref(props.defaultOpen)
 
 const ariaLabel = computed(() =>
   isOpen.value ? 'Collapse card' : 'Expand card'
@@ -30,9 +25,12 @@ const ariaLabel = computed(() =>
     :class="borderClass"
   >
     <template #header>
-      <UCollapsible v-model:open="isOpen">
-        <!-- Header sempre visibile -->
-        <div class="flex items-center justify-between">
+      <!-- UCollapsible con default-open prop -->
+      <UCollapsible
+        :default-open="props.defaultOpen"
+      >
+        <!-- Header - pointer-events-none impedisce il click -->
+        <div class="flex items-center justify-between pointer-events-none">
           <div class="flex items-center gap-2">
             <slot name="header-icon" />
             <h2 class="text-lg font-semibold">
@@ -42,21 +40,27 @@ const ariaLabel = computed(() =>
           </div>
 
           <div class="flex items-center gap-2">
-            <slot name="header-actions" />
+            <!-- Re-abilita pointer-events per i bottoni nell'header -->
+            <div class="pointer-events-auto">
+              <slot name="header-actions" />
+            </div>
+
+            <!-- Solo questo bottone controlla il toggle - re-abilita pointer-events -->
             <UButton
               :icon="isOpen ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
               :aria-label="ariaLabel"
               size="xs"
               variant="ghost"
               color="neutral"
-              class="transition-transform duration-200"
+              class="cursor-pointer transition-transform duration-200 pointer-events-auto"
+              @click="isOpen = !isOpen"
             />
           </div>
         </div>
 
         <!-- Content collassabile -->
         <template #content>
-          <div class="pt-4">
+          <div class="mt-4 pt-4 border-t border-default">
             <slot />
           </div>
         </template>
