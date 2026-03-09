@@ -279,7 +279,7 @@ function copyToClipboard() {
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Left Column: Input -->
         <div class="space-y-4">
-          <ProgressChecklist
+          <ProgressChecklistCard
             :items="checklistItems"
             :completed-count="completedCount"
             :total-count="totalCount"
