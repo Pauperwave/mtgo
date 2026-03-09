@@ -74,11 +74,9 @@ function handleAcceptAll() {
         variant="ghost"
         color="success"
         icon="i-lucide-check-check"
-        class="cursor-pointer"
+        label="Accetta suggerimenti"
         @click.stop="handleAcceptAll"
-      >
-        Accetta suggerimenti
-      </UButton>
+      />
     </template>
 
     <template #header-title>
@@ -89,13 +87,12 @@ function handleAcceptAll() {
       <UBadge
         color="warning"
         variant="soft"
-      >
-        {{ suggestions.length }} {{ suggestions.length === 1 ? 'carta' : 'carte' }}
-      </UBadge>
+        :label="`${suggestions.length} ${suggestions.length === 1 ? 'carta' : 'carte'}`"
+      />
     </template>
 
     <div class="space-y-3">
-      <p class="text-sm text-muted">
+      <p class="text-sm text-gray-500 dark:text-gray-400">
         {{ suggestions.length > 1 ? 'Le seguenti carte non sono state riconosciute' : 'La seguente carta non è stata riconosciuta' }} esattamente, ma {{ suggestions.length > 1 ? 'sono state trovate corrispondenze' : 'è stata trovata una corrispondenza' }} simile.
         Vuoi applicare {{ suggestions.length > 1 ? 'le correzioni' : 'la correzione' }}?
       </p>
@@ -113,15 +110,14 @@ function handleAcceptAll() {
               name="i-lucide-search"
               class="size-4 text-info shrink-0"
             />
-            <span class="font-mono text-sm font-semibold text-muted">
+            <span class="font-mono text-sm font-semibold text-gray-500 dark:text-gray-400">
               "{{ searchedName }}"
             </span>
             <UBadge
               color="warning"
               variant="soft"
-            >
-              {{ cardSuggestions.length }} {{ cardSuggestions.length === 1 ? 'suggerimento' : 'suggerimenti' }}
-            </UBadge>
+              :label="`${cardSuggestions.length} ${cardSuggestions.length === 1 ? 'suggerimento' : 'suggerimenti'}`"
+            />
           </div>
 
           <!-- Suggestions for this searched name -->
@@ -151,33 +147,26 @@ function handleAcceptAll() {
                 <UBadge
                   :color="getConfidenceColor(suggestion.confidence)"
                   variant="soft"
-                >
-                  <template #leading>
-                    <UIcon
-                      :name="getConfidenceIcon(suggestion.confidence)"
-                      class="size-3"
-                    />
-                  </template>
-                  {{ getConfidenceLabel(suggestion.confidence) }}
-                </UBadge>
+                  :label="getConfidenceLabel(suggestion.confidence)"
+                  :leading-icon="getConfidenceIcon(suggestion.confidence)"
+                />
 
                 <UBadge
                   color="neutral"
                   variant="outline"
-                >
-                  {{ getMatchTypeLabel(suggestion.matchType) }}
-                </UBadge>
+                  :label="getMatchTypeLabel(suggestion.matchType)"
+                />
 
                 <span
                   v-if="suggestion.normalizedDistance !== undefined && suggestion.normalizedDistance > 0"
-                  class="text-xs text-muted"
+                  class="text-xs text-gray-500 dark:text-gray-400"
                 >
                   distanza: {{ suggestion.normalizedDistance }}
                 </span>
 
                 <span
                   v-if="suggestion.similarity !== undefined"
-                  class="text-xs text-muted"
+                  class="text-xs text-gray-500 dark:text-gray-400"
                 >
                   • confidenza: {{ Math.round(suggestion.similarity * 100) }}%
                 </span>
@@ -190,28 +179,24 @@ function handleAcceptAll() {
                   color="info"
                   variant="solid"
                   icon="i-lucide-check"
-                  class="cursor-pointer"
+                  label="Applica"
                   @click="emit('apply', suggestion)"
-                >
-                  Applica
-                </UButton>
+                />
                 <UButton
                   size="xs"
                   color="neutral"
                   variant="ghost"
                   icon="i-lucide-x"
-                  class="cursor-pointer"
+                  label="Ignora"
                   @click="emit('dismiss', suggestion.searchedName)"
-                >
-                  Ignora
-                </UButton>
+                />
               </div>
             </li>
           </ul>
         </div>
       </div>
 
-      <div class="flex items-start gap-2 text-xs text-muted">
+      <div class="flex items-start gap-2 text-xs text-gray-500 dark:text-gray-400">
         <UIcon
           name="i-lucide-info"
           class="size-4 mt-0.5 shrink-0"
@@ -220,7 +205,7 @@ function handleAcceptAll() {
           <p>
             Le correzioni sono state trovate tramite ricerca intelligente su Scryfall.
           </p>
-          <p class="text-muted/80">
+          <p class="text-gray-400 dark:text-gray-500">
             Le correzioni automatiche ad alta confidenza sono già state applicate.
           </p>
         </div>
