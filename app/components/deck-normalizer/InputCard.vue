@@ -78,7 +78,7 @@ function handleLoadDeck(deckText: string) {
         size="lg"
         autofocus
         placeholder="Incolla la lista del tuo mazzo qui..."
-        :ui="{ base: 'font-mono' }"
+        class="font-mono w-full"
       />
     </div>
   </UCard>
