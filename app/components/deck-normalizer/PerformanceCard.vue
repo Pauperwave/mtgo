@@ -14,37 +14,39 @@ const stats = computed(() => {
       label: 'Database',
       value: props.performance.databaseHits,
       icon: 'i-lucide-database',
-      color: 'success',
-      bgClass: 'bg-success'
+      color: 'success' as const,
+      bgClass: 'bg-success',
+      textClass: 'text-success'
     },
     {
       label: 'API Scryfall',
       value: props.performance.scryfallRequests,
       icon: 'i-lucide-cloud',
-      color: 'warning',
-      bgClass: 'bg-warning'
+      color: 'warning' as const,
+      bgClass: 'bg-warning',
+      textClass: 'text-warning'
     },
     {
       label: 'Fuzzy',
       value: props.performance.fuzzyMatches,
       icon: 'i-lucide-search',
-      color: 'info',
-      bgClass: 'bg-info'
+      color: 'info' as const,
+      bgClass: 'bg-info',
+      textClass: 'text-info'
     },
     {
       label: 'Non Trovate',
       value: props.performance.notFound,
       icon: 'i-lucide-x-circle',
-      color: 'error',
-      bgClass: 'bg-error'
+      color: 'error' as const,
+      bgClass: 'bg-error',
+      textClass: 'text-error'
     }
   ]
 
-  // Filtra quelli con valore > 0 per la progress bar
   return base.filter(stat => stat.value > 0)
 })
 
-// Aggiunta del tempo separatamente
 const timeStats = computed(() => ({
   label: 'Tempo',
   value: formattedTime.value,
@@ -97,7 +99,7 @@ const getPercentage = (value: number) => {
     </template>
 
     <div class="space-y-4">
-      <!-- Stats grid - completamente refactored -->
+      <!-- Stats grid -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <!-- Stats dinamici -->
         <div
@@ -109,13 +111,13 @@ const getPercentage = (value: number) => {
             <UIcon
               :name="stat.icon"
               class="size-4"
-              :class="`text-${stat.color}`"
+              :class="stat.textClass"
             />
             <span class="text-sm text-muted">{{ stat.label }}</span>
           </div>
           <p
             class="text-2xl font-bold"
-            :class="`text-${stat.color}`"
+            :class="stat.textClass"
           >
             {{ stat.value }}
           </p>
