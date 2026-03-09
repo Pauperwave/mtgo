@@ -105,11 +105,9 @@ const styledLines = computed(() => {
         variant="ghost"
         color="success"
         :icon="copied ? 'i-lucide-check' : 'i-lucide-copy'"
-        class="cursor-pointer"
+        :label="copied ? 'Copiato!' : 'Copia'"
         @click.stop="emit('copy')"
-      >
-        {{ copied ? 'Copiato!' : 'Copia' }}
-      </UButton>
+      />
     </template>
 
     <div>
@@ -117,6 +115,7 @@ const styledLines = computed(() => {
       <UAlert
         v-if="isPartial"
         color="warning"
+        variant="soft"
         icon="i-lucide-alert-triangle"
         title="Output Parziale"
         :description="warningMessage"
