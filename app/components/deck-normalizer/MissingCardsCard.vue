@@ -33,7 +33,7 @@ function extractCardName(cardString: string): string {
     </template>
 
     <div class="space-y-3">
-      <p class="text-sm text-muted">
+      <p class="text-sm text-gray-500 dark:text-gray-400">
         {{ cards.length > 1 ? 'Le seguenti carte non sono state trovate' : 'La seguente carta non è stata trovata' }} su Scryfall.
         Controlla l'ortografia o il nome della carta.
       </p>
@@ -58,17 +58,15 @@ function extractCardName(cardString: string): string {
               size="xs"
               variant="soft"
               color="warning"
-              icon="i-lucide-search"
-              trailing
-              class="cursor-pointer"
-            >
-              Cerca
-            </UButton>
+              trailing-icon="i-lucide-search"
+              label="Cerca"
+              external
+            />
           </li>
         </ul>
       </div>
 
-      <div class="flex items-start gap-2 text-xs text-muted">
+      <div class="flex items-start gap-2 text-xs text-gray-500 dark:text-gray-400">
         <UIcon
           name="i-lucide-lightbulb"
           class="size-4 mt-0.5 shrink-0"
