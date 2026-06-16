@@ -26,6 +26,16 @@ import {
 const SCRYFALL_COLLECTION_API = 'https://api.scryfall.com/cards/collection'
 
 /**
+ * Required headers for all Scryfall API requests
+ * Scryfall requires a descriptive User-Agent to identify the application
+ * https://scryfall.com/docs/api
+ */
+const SCRYFALL_HEADERS = {
+  'Content-Type': 'application/json',
+  'User-Agent': 'MTGO-Deck-Normalizer/1.0 (https://github.com/Pauperwave/mtgo)'
+}
+
+/**
  * Convert Scryfall API card to our Card type
  */
 function scryfallToCard(scryfallCard: ScryfallCard): Card {
@@ -86,14 +96,12 @@ async function fetchMissingCardsFromScryfall(missingNames: string[]): Promise<Ma
 
       const response = await fetch(SCRYFALL_COLLECTION_API, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: SCRYFALL_HEADERS,
         body: JSON.stringify({ identifiers })
       })
 
       if (!response.ok) {
-        // console.error(`Scryfall API error: ${response.status} ${response.statusText}`)
+        console.error(`Scryfall API error: ${response.status} ${response.statusText}`)
         continue
       }
 
@@ -129,28 +137,26 @@ async function fetchMissingCardsFromScryfall(missingNames: string[]): Promise<Ma
             const frontFace = getFrontFace(name)
             dfcRetries.push({ originalName: name, frontFace })
           } else {
-            // console.warn(`Card not found on Scryfall: ${name}`)
+            console.warn(`Card not found on Scryfall: ${name}`)
           }
         }
 
         // Retry DFC cards with front face only
         if (dfcRetries.length > 0) {
-          // console.log(`🔄 Retrying ${dfcRetries.length} DFC card(s) with front face only:`, dfcRetries.map(r => `"${r.originalName}" → "${r.frontFace}"`).join(', '))
+          console.log(`🔄 Retrying ${dfcRetries.length} DFC card(s) with front face only:`, dfcRetries.map(r => `"${r.originalName}" → "${r.frontFace}"`).join(', '))
 
           const retryIdentifiers = dfcRetries.map(r => ({ name: r.frontFace }))
 
           const retryResponse = await fetch(SCRYFALL_COLLECTION_API, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
+            headers: SCRYFALL_HEADERS,
             body: JSON.stringify({ identifiers: retryIdentifiers })
           })
 
           if (retryResponse.ok) {
             const retryData = await retryResponse.json()
 
-            // console.log(`📦 Retry response: found ${retryData.data?.length || 0} card(s), not_found ${retryData.not_found?.length || 0}`)
+            console.log(`📦 Retry response: found ${retryData.data?.length || 0} card(s), not_found ${retryData.not_found?.length || 0}`)
 
             if (retryData.data && Array.isArray(retryData.data)) {
               for (const scryfallCard of retryData.data as ScryfallCard[]) {
@@ -163,16 +169,16 @@ async function fetchMissingCardsFromScryfall(missingNames: string[]): Promise<Ma
 
                 if (matchingRetry) {
                   result.set(matchingRetry.originalName, card)
-                  // console.log(`  ✅ Found DFC card "${matchingRetry.originalName}" by front face search → "${card.name}"`)
+                  console.log(`  ✅ Found DFC card "${matchingRetry.originalName}" by front face search → "${card.name}"`)
                 }
               }
             }
 
             if (retryData.not_found && retryData.not_found.length > 0) {
-              // console.warn(`  ❌ Still not found after retry:`, retryData.not_found.map((nf: any) => nf.name).join(', '))
+              console.warn(`  ❌ Still not found after retry:`, retryData.not_found.map((nf: { name: string }) => nf.name).join(', '))
             }
           } else {
-            // console.error(`❌ DFC retry request failed: ${retryResponse.status} ${retryResponse.statusText}`)
+            console.error(`❌ DFC retry request failed: ${retryResponse.status} ${retryResponse.statusText}`)
           }
         }
       }
@@ -182,7 +188,7 @@ async function fetchMissingCardsFromScryfall(missingNames: string[]): Promise<Ma
         await new Promise(resolve => setTimeout(resolve, 100))
       }
     } catch (error) {
-      // console.error('Error fetching from Scryfall:', error)
+      console.error('Error fetching from Scryfall:', error)
     }
   }
 
@@ -283,7 +289,7 @@ export default defineEventHandler(async (event): Promise<ResolveCardsResponse> =
         // Try Scryfall's fuzzy search first (best match)
         try {
           const scryfallUrl = `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(missingName)}`
-          const response = await fetch(scryfallUrl)
+          const response = await fetch(scryfallUrl, { headers: SCRYFALL_HEADERS })
           scryfallFuzzyRequests++
 
           if (response.ok) {
@@ -367,7 +373,7 @@ export default defineEventHandler(async (event): Promise<ResolveCardsResponse> =
 
       // Remove all resolved cards from missing array (after iteration completes)
       for (let i = missing.length - 1; i >= 0; i--) {
-        if (resolvedFromFuzzy.has(missing[i])) {
+        if (resolvedFromFuzzy.has(missing[i]!)) {
           missing.splice(i, 1)
         }
       }
