@@ -10,6 +10,26 @@ Integrare il deck normalizer in `blog.pauperwave.com/tools/deck-normalizer` usan
 
 ---
 
+## 🪜 Strategia di Rollout: Neon prima in `mtgo`, poi nel blog
+
+Invece di saltare direttamente al layer nel monorepo `blog`, la migrazione a Neon+Drizzle viene validata prima **in isolamento dentro il repo `mtgo`** (dove il normalizzatore vive oggi con SQLite), e solo dopo portata nel `blog`. Motivo: un solo progetto da rompere/rollback-are se qualcosa va storto, e si può testare estensivamente su una superficie piccola prima di toccare il monorepo di produzione.
+
+**Stage A — Validazione in `mtgo` (FASE 1 + FASE 2):**
+1. Setup Neon + Drizzle *dentro `mtgo`*, in parallelo a SQLite (non sostituendolo subito)
+2. Migrazione dati da `cards.db` a Neon
+3. Adattare `server/api/cards/resolve.post.ts` e `server/utils/card-database.ts` a Drizzle, **dentro `mtgo`**
+4. Testare estensivamente: `nuxt dev` locale, deck reali, fuzzy matching, performance vs SQLite
+5. ✅ Solo quando lo stage è stabile e validato, si procede allo Stage B
+
+**Stage B — Porting nel blog (FASE 3 → FASE 5):**
+1. Creare il Nuxt Layer `app/layers/deck-normalizer` nel monorepo `blog`
+2. Copiare il codice **già adattato e testato** da `mtgo` (schema Drizzle, `database.ts`, `resolve.post.ts`) invece di riscriverlo da zero
+3. Integrare il layer nel `nuxt.config.ts` del blog e deploy su Vercel
+
+Questo significa che **FASE 1 e FASE 2 di seguito si eseguono dentro `mtgo`** (la stesura originale partiva direttamente da `blog`). Da FASE 3 in poi si opera sul monorepo `blog`.
+
+---
+
 ## 🤔 Rationale: Perché Queste Scelte Architetturali?
 
 ### Perché Neon invece di altre soluzioni?
@@ -333,7 +353,7 @@ pauperwave_blog/                    (root del blog)
 
 ## 🔄 Fasi di Implementazione
 
-### **FASE 1: Setup Database Neon + Drizzle** ⏱️ ~30 min
+### **FASE 1: Setup Database Neon + Drizzle** ⏱️ ~30 min · 📍 in `mtgo`
 
 #### 1.1 Creare Database Neon
 
@@ -352,29 +372,27 @@ pauperwave_blog/                    (root del blog)
 #### 1.2 Installare Dipendenze
 
 ```bash
-cd test/  # (blog project)
+cd mtgo/  # setup Neon+Drizzle qui prima, non ancora nel blog
 bun add drizzle-orm @neondatabase/serverless
 bun add -D drizzle-kit @types/node
 ```
 
-**Versioni consigliate:**
-- `drizzle-orm`: ^0.30.0
-- `drizzle-kit`: ^0.20.0
-- `@neondatabase/serverless`: ^0.9.0
+**Versioni consigliate (verificate su npm, 2026-09-23):**
+- `drizzle-orm`: ^0.45.3
+- `drizzle-kit`: ^0.31.11
+- `@neondatabase/serverless`: ^1.1.0
+
+> Nota: `@neondatabase/serverless` è passato a v1.x (breaking change minori rispetto a 0.9.x). `drizzle-orm` 0.45+ è compatibile con entrambe le major, ma verificare il changelog prima di eseguire `bun add` in caso siano uscite versioni più recenti nel frattempo.
 
 #### 1.3 Inizializzare Drizzle
 
-```bash
-mkdir -p server/database
-```
-
-Crea file di configurazione:
-- `server/database/schema.ts`: Schema database TypeScript
-- `drizzle.config.ts`: Config per drizzle-kit
+`server/database/` esiste già in `mtgo` (contiene `cards.db`). Aggiungere solo i nuovi file, senza toccare `cards.db` finché la migrazione non è validata:
+- `server/database/schema.ts`: Schema database TypeScript (nuovo, coesiste con `cards.db`)
+- `drizzle.config.ts`: Config per drizzle-kit (root del progetto)
 
 #### 1.4 Creare Schema Drizzle
 
-File: `test/server/database/schema.ts`
+File: `mtgo/server/database/schema.ts`
 
 ```typescript
 // Drizzle schema per Deck Normalizer
@@ -444,7 +462,7 @@ export const metadata = pgTable('metadata', {
 
 #### 1.5 Configurare Drizzle Kit
 
-File: `test/drizzle.config.ts`
+File: `mtgo/drizzle.config.ts`
 
 ```typescript
 import type { Config } from 'drizzle-kit'
@@ -462,7 +480,7 @@ export default {
 #### 1.6 Generare e Applicare Migration
 
 ```bash
-cd test/
+cd mtgo/
 bunx drizzle-kit generate
 bunx drizzle-kit push
 ```
@@ -483,15 +501,15 @@ Pushing schema to database...
 
 ---
 
-### **FASE 2: Migrazione Dati SQLite → Postgres** ⏱️ ~20 min
+### **FASE 2: Migrazione Dati SQLite → Postgres** ⏱️ ~20 min · 📍 in `mtgo`
 
 #### 2.1 Creare Script di Migrazione
 
-File: `test/scripts/migrate-sqlite-to-postgres.ts`
+File: `mtgo/scripts/migrate-sqlite-to-postgres.ts`
 
 ```typescript
 /**
- * Migrates card data from SQLite (mtgo/server/database/cards.db)
+ * Migrates card data from SQLite (server/database/cards.db, stesso repo)
  * to Neon PostgreSQL using Drizzle
  * 
  * Run: bun run scripts/migrate-sqlite-to-postgres.ts
@@ -510,8 +528,8 @@ import Database from 'better-sqlite3'
 const sql = neon(process.env.DATABASE_URL!)
 const db = drizzle(sql)
 
-// Path to source SQLite database
-const SQLITE_PATH = resolve(__dirname, '../../mtgo/server/database/cards.db')
+// Path to source SQLite database (stesso repo, script vive in mtgo/scripts/)
+const SQLITE_PATH = resolve(__dirname, '../server/database/cards.db')
 
 interface SQLiteCard {
   id: string
@@ -707,7 +725,7 @@ migrate()
 #### 2.2 Eseguire Migrazione
 
 ```bash
-cd test/
+cd mtgo/
 bun run scripts/migrate-sqlite-to-postgres.ts
 ```
 
@@ -752,73 +770,23 @@ Drizzle Studio aprirà `http://localhost:4983` con UI per esplorare i dati.
 
 ---
 
-### **FASE 3: Creare Nuxt Layer per Deck Normalizer** ⏱️ ~45 min
+#### 2.4 Adattare Server Utilities con Drizzle (in `mtgo`)
 
-#### 3.1 Creare Struttura Layer
+Nuovo file, affiancato a `card-database.ts` (SQLite) esistente — non sostituirlo finché Stage A non è validato.
 
-```bash
-cd test/
-mkdir -p app/layers/deck-normalizer/{app/{components,composables,pages,services,types,utils},server/{api,utils},shared/types,assets/css,prisma}
-```
-
-#### 3.2 Copiare Codice da mtgo → Layer
-
-**Script automatico per copiare files:**
-
-File: `test/scripts/copy-mtgo-to-layer.sh`
-
-```bash
-#!/bin/bash
-
-# Copy MTGO deck normalizer to Nuxt Layer
-SOURCE="../mtgo"
-DEST="app/layers/deck-normalizer"
-
-echo "📦 Copying MTGO deck normalizer to layer..."
-
-# App files
-cp -r "$SOURCE/app/components/deck-normalizer" "$DEST/app/components/"
-cp -r "$SOURCE/app/composables"/* "$DEST/app/composables/"
-cp -r "$SOURCE/app/services"/* "$DEST/app/services/"
-cp -r "$SOURCE/app/types"/* "$DEST/app/types/"
-cp -r "$SOURCE/app/utils"/* "$DEST/app/utils/"
-cp "$SOURCE/app/pages/index.vue" "$DEST/app/pages/tools/deck-normalizer.vue"
-
-# Shared types
-cp -r "$SOURCE/shared/types"/* "$DEST/shared/types/"
-
-# Assets
-cp -r "$SOURCE/app/assets/css"/* "$DEST/assets/css/"
-
-echo "✅ Files copied successfully!"
-echo "⚠️  Remember to adapt server/ files manually (SQLite → Prisma)"
-```
-
-**Eseguire:**
-```bash
-chmod +x scripts/copy-mtgo-to-layer.sh
-./scripts/copy-mtgo-to-layer.sh
-```
-
-**Files da adattare manualmente:**
-- `server/api/cards/resolve.post.ts` → Riscrivere con Drizzle
-- `server/utils/card-database.ts` → Riscrivere con Drizzle
-
-#### 3.3 Adattare Server Utilities con Drizzle
-
-**File: `test/app/layers/deck-normalizer/server/utils/database.ts`**
+**File: `mtgo/server/utils/database.ts`**
 
 ```typescript
 /**
  * Database utilities using Drizzle ORM
- * Replaces SQLite-based card-database.ts with Postgres/Drizzle
+ * Coesiste con card-database.ts (SQLite) finché non validato
  */
 
 import { drizzle } from 'drizzle-orm/neon-http'
 import { neon } from '@neondatabase/serverless'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { cards, nameMappings, metadata } from '../database/schema'
-import type { Card, NameMapping } from '~/shared/types'
+import type { Card, NameMapping } from '../../shared/types'
 
 // Initialize Neon connection
 const sqlClient = neon(process.env.DATABASE_URL!)
@@ -1060,53 +1028,115 @@ const matches = await db.execute(sql`
 `)
 ```
 
-#### 3.4 Adattare Server API
+#### 2.5 Adattare Server API (in `mtgo`)
 
-**File: `test/app/layers/deck-normalizer/server/api/cards/resolve.post.ts`**
+Per testare in parallelo senza rompere l'endpoint SQLite esistente, creare una rotta separata invece di sovrascrivere `resolve.post.ts`.
+
+**File: `mtgo/server/api/cards/resolve-neon.post.ts`** (nuova rotta di test)
 
 ```typescript
 /**
- * POST /api/cards/resolve
- * 
- * Resolves card names to full card data using Neon Postgres + Scryfall fallback
- * 
- * Changes from SQLite version:
- * - Uses Drizzle ORM instead of better-sqlite3
- * - Same logic, different database layer
+ * POST /api/cards/resolve-neon
+ *
+ * Copia di resolve.post.ts che usa Neon+Drizzle invece di SQLite.
+ * Rotta separata per test A/B contro l'endpoint SQLite esistente,
+ * finché Stage A non è validato e si può fare il cutover.
  */
 
-import type { 
-  ResolveCardsRequest, 
-  ResolveCardsResponse, 
-  Card, 
-  ScryfallCard, 
-  FuzzySuggestion 
-} from '~/shared/types'
+import type {
+  ResolveCardsRequest,
+  ResolveCardsResponse,
+  Card,
+  ScryfallCard,
+  FuzzySuggestion
+} from '../../../shared/types'
 
-import { 
-  getCardsByNormalizedNames, 
+import {
+  getCardsByNormalizedNames,
   upsertNameMapping,
   findCardsByFuzzyName,
   normalizeCardName,
   levenshteinDistance
 } from '../../utils/database'
 
-// ... rest of the file is IDENTICAL to the original
-// Just replace:
-// - import from '../../../shared/types' → '~/shared/types'
-// - import from '../../utils/card-database' → '../../utils/database'
-// - All database calls already use the same function names
-
-// Copy the entire original file content here with updated imports
+// ... resto del file è IDENTICO all'originale server/api/cards/resolve.post.ts
+// Unico cambio: import da '../../utils/card-database' → '../../utils/database'
+// Le function signature sono identiche, nessun cambio alla logica applicativa
 ```
 
 **Modifiche necessarie:**
-1. Update import paths
-2. Nessun cambio alla logica (le function signatures sono identiche)
+1. Copiare `resolve.post.ts` → `resolve-neon.post.ts`
+2. Cambiare solo l'import da `card-database` a `database`
+3. Puntare temporaneamente il frontend (o un flag/query param) alla nuova rotta per i test
+4. Solo dopo la validazione (Stage A completato): rinominare/sostituire `resolve.post.ts` e rimuovere la rotta di test
 
-#### 3.5 Layer Configuration
+---
 
-**File: `test/app/layers/deck-normalizer/nuxt.config.ts`**
+**FASE 3 — da qui si opera sul monorepo `blog`, portando il codice già validato in `mtgo`.**
+
+---
+
+### **FASE 3: Creare Nuxt Layer per Deck Normalizer** ⏱️ ~45 min · 📍 in `blog`
+
+#### 3.1 Creare Struttura Layer
+
+```bash
+cd blog/
+mkdir -p app/layers/deck-normalizer/{app/{components,composables,pages,services,types,utils},server/{api,utils,database},shared/types,assets/css}
+```
+
+#### 3.2 Copiare Codice già validato da `mtgo` → Layer
+
+A differenza della stesura originale, qui **non c'è più nulla da riscrivere**: `database.ts` e `resolve-neon.post.ts` sono già stati adattati a Drizzle e testati in Stage A (Fase 2.4/2.5). Si copiano così come sono.
+
+**Script automatico per copiare files:**
+
+File: `blog/scripts/copy-mtgo-to-layer.sh`
+
+```bash
+#!/bin/bash
+
+# Copy MTGO deck normalizer (già Drizzle-ready) to Nuxt Layer
+SOURCE="../mtgo"
+DEST="app/layers/deck-normalizer"
+
+echo "📦 Copying MTGO deck normalizer to layer..."
+
+# App files
+cp -r "$SOURCE/app/components/deck-normalizer" "$DEST/app/components/"
+cp -r "$SOURCE/app/composables"/* "$DEST/app/composables/"
+cp -r "$SOURCE/app/services"/* "$DEST/app/services/"
+cp -r "$SOURCE/app/types"/* "$DEST/app/types/"
+cp -r "$SOURCE/app/utils"/* "$DEST/app/utils/"
+cp "$SOURCE/app/pages/index.vue" "$DEST/app/pages/tools/deck-normalizer.vue"
+
+# Server (già Drizzle, validati in Stage A)
+cp "$SOURCE/server/database/schema.ts" "$DEST/server/database/"
+cp "$SOURCE/server/utils/database.ts" "$DEST/server/utils/"
+cp "$SOURCE/server/api/cards/resolve-neon.post.ts" "$DEST/server/api/cards/resolve.post.ts"
+
+# Shared types
+cp -r "$SOURCE/shared/types"/* "$DEST/shared/types/"
+
+# Assets
+cp -r "$SOURCE/app/assets/css"/* "$DEST/assets/css/"
+
+echo "✅ Files copied successfully!"
+```
+
+**Eseguire:**
+```bash
+chmod +x scripts/copy-mtgo-to-layer.sh
+./scripts/copy-mtgo-to-layer.sh
+```
+
+**Modifiche necessarie dopo la copia:**
+1. Aggiornare gli import da path relativi (`../../shared/types`) a `~/shared/types` (alias Nuxt Layer)
+2. Nessun cambio alla logica applicativa: le function signature restano identiche
+
+#### 3.3 Layer Configuration
+
+**File: `blog/app/layers/deck-normalizer/nuxt.config.ts`**
 
 ```typescript
 // Deck Normalizer Layer Configuration
@@ -1129,11 +1159,11 @@ export default defineNuxtConfig({
 
 ---
 
-### **FASE 4: Integrare Layer nel Blog** ⏱️ ~20 min
+### **FASE 4: Integrare Layer nel Blog** ⏱️ ~20 min · 📍 in `blog`
 
 #### 4.1 Aggiornare Root Config
 
-**File: `test/nuxt.config.ts`**
+**File: `blog/nuxt.config.ts`**
 
 ```typescript
 import { definePerson } from "nuxt-schema-org/schema"
@@ -1180,7 +1210,7 @@ export default defineNuxtConfig({
 
 **Esempio: Aggiungere link nella navbar**
 
-File: `test/app/components/AppHeader.vue` (o equivalente)
+File: `blog/app/components/AppHeader.vue` (o equivalente)
 
 ```vue
 <template>
@@ -1211,7 +1241,7 @@ const toolsItems = [
 
 #### 4.3 Aggiornare package.json
 
-**File: `test/package.json`**
+**File: `blog/package.json`**
 
 ```json
 {
@@ -1232,14 +1262,14 @@ const toolsItems = [
   "dependencies": {
     "@nuxt/content": "^3.11.2",
     "@nuxt/ui": "^4.5.0",
-    "@neondatabase/serverless": "^0.9.0",
-    "drizzle-orm": "^0.30.0",
+    "@neondatabase/serverless": "^1.1.0",
+    "drizzle-orm": "^0.45.3",
     "better-sqlite3": "^12.6.2",
     "nuxt": "^4.3.1"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "drizzle-kit": "^0.20.0",
+    "drizzle-kit": "^0.31.11",
     "typescript": "^5.9.3"
   }
 }
@@ -1252,7 +1282,7 @@ const toolsItems = [
 
 ---
 
-### **FASE 5: Deploy su Vercel** ⏱️ ~15 min
+### **FASE 5: Deploy su Vercel** ⏱️ ~15 min · 📍 in `blog`
 
 #### 5.1 Configurare Environment Variables su Vercel
 
@@ -1263,17 +1293,15 @@ const toolsItems = [
 | Name | Value | Environment |
 |------|-------|-------------|
 | `DATABASE_URL` | `postgresql://user:pass@ep-xxx.neon.tech/neondb?sslmode=require` | Production, Preview, Development |
-| `DIRECT_URL` | `postgresql://user:pass@ep-xxx.neon.tech/neondb` | Production, Preview, Development |
 
 **Note:**
-- Copiate entrambi gli URL da Neon dashboard
-- Applicate a tutti gli environment per consistenza
-- `DATABASE_URL`: Connection pooling (usato dall'app)
-- `DIRECT_URL`: Direct connection (usato da Prisma Migrate)
+- Copiare l'URL dalla Neon dashboard (connection pooling, unica variabile richiesta da Drizzle sia per l'app che per `drizzle-kit generate/push`, vedi `drizzle.config.ts` in Fase 1)
+- Applicare a tutti gli environment per consistenza
+- Non serve `DIRECT_URL`: quella è specifica di Prisma Migrate, qui non usata
 
 #### 5.2 Creare `.env.example`
 
-**File: `test/.env.example`**
+**File: `blog/.env.example`**
 
 ```env
 # Neon PostgreSQL Database
@@ -1283,7 +1311,7 @@ DATABASE_URL="postgresql://user:password@host/db?sslmode=require"
 
 #### 5.3 Aggiungere `.env` a `.gitignore`
 
-**File: `test/.gitignore`**
+**File: `blog/.gitignore`**
 
 ```
 # Environment variables
@@ -1297,7 +1325,7 @@ drizzle/
 
 #### 5.4 Configurare Vercel Build
 
-**File: `test/vercel.json`**
+**File: `blog/vercel.json`**
 
 ```json
 {
@@ -1307,8 +1335,7 @@ drizzle/
   "framework": "nuxtjs",
   "regions": ["iad1"],
   "env": {
-    "DATABASE_URL": "@database-url",
-    "DIRECT_URL": "@direct-url"
+    "DATABASE_URL": "@database-url"
   }
 }
 ```
@@ -1320,7 +1347,7 @@ drizzle/
 #### 5.5 Deploy
 
 ```bash
-cd test/
+cd blog/
 git add .
 git commit -m "feat: integrate deck normalizer with Neon Postgres
 
@@ -1409,19 +1436,21 @@ CREATE INDEX cards_name_trgm_idx ON cards USING gin (name_normalized gin_trgm_op
 CREATE INDEX cards_name_fts_idx ON cards USING gin (to_tsvector('english', name));
 ```
 
-**Update Prisma query:**
+**Update query (Drizzle):**
 
 ```typescript
+import { sql } from 'drizzle-orm'
+
 export async function findCardsByFuzzyName(
   inputName: string,
   maxResults = 5,
   minSimilarity = 0.6
 ): Promise<FuzzyMatch[]> {
   const normalized = normalizeCardName(inputName)
-  
+
   // Use pg_trgm for fast fuzzy search
-  const matches = await prisma.$queryRaw<Array<Card & { similarity: number }>>`
-    SELECT 
+  const matches = await db.execute<Card & { similarity: number; distance: number }>(sql`
+    SELECT
       *,
       similarity(name_normalized, ${normalized}) as similarity,
       levenshtein(name_normalized, ${normalized}) as distance
@@ -1429,9 +1458,9 @@ export async function findCardsByFuzzyName(
     WHERE similarity(name_normalized, ${normalized}) > ${minSimilarity}
     ORDER BY similarity DESC
     LIMIT ${maxResults}
-  `
-  
-  return matches.map(m => ({
+  `)
+
+  return matches.rows.map(m => ({
     card: m,
     distance: m.distance,
     similarity: m.similarity
@@ -1485,32 +1514,9 @@ export async function getCardByName(name: string): Promise<Card | null> {
 - ⏸️ Ora: Se vuoi massima performance da subito
 - ❌ Mai: Se Neon è già abbastanza veloce (<50ms)
 
-### Opzione 3: Prisma Data Proxy
+> **Nota:** l'opzione "Prisma Data Proxy" è stata rimossa da questa revisione — non applicabile, il piano usa Drizzle + Neon HTTP driver che non ha cold start di connessione TCP (vedi rationale in apertura).
 
-**Performance boost:** Elimina cold starts (~2s → ~200ms)
-
-Prisma in serverless ha un problema: ogni cold start deve creare connessione DB (~2s overhead). Data Proxy mantiene connection pool persistente.
-
-**Setup:**
-1. Abilitare su [prisma.io/data-platform](https://www.prisma.io/data-platform)
-2. Ottenere `PRISMA_DATA_PROXY_URL`
-3. Update `schema.prisma`:
-   ```prisma
-   datasource db {
-     provider = "postgresql"
-     url      = env("PRISMA_DATA_PROXY_URL")
-   }
-   ```
-
-**Costi:**
-- Prisma Data Proxy: $25/mese (no free tier)
-
-**Quando implementare:**
-- ❌ Ora: Non necessario, Vercel caching mitiga cold starts
-- ⏸️ Futuro: Se cold starts diventano problema (>10% requests)
-- ✅ Scale: Se traffic >100K req/mese
-
-### Opzione 4: Edge Caching con Vercel
+### Opzione 3: Edge Caching con Vercel
 
 **Performance boost:** Repeated requests ~500ms → ~50ms
 
