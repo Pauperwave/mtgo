@@ -1,24 +1,53 @@
 <!-- app/components/deck-normalizer/ContentBlockCard.vue -->
 <script setup lang="ts">
-import { useClipboard } from '@vueuse/core'
 import type { NormalizedCard } from '~/types/deck'
 import { detectDeckGradient } from '~/utils/deck-gradient'
-import { getDecklistStyles } from '~/utils/decklist-styles'
+import { getDecklistStyles, getManaSequence, GRADIENT_OPTIONS } from '~/utils/decklist-styles'
 
 interface Props {
   output: string
   normalizedCards: NormalizedCard[]
+  copied: boolean
 }
 
-const { output, normalizedCards } = defineProps<Props>()
+interface Emits {
+  (e: 'copy', block: string): void
+}
+
+const { output, normalizedCards, copied } = defineProps<Props>()
+const emit = defineEmits<Emits>()
 
 const name = defineModel<string>('name', { default: '' })
 const player = defineModel<string>('player', { default: '' })
 const placement = defineModel<string>('placement', { default: 'Winner' })
 
-const gradient = computed(() => detectDeckGradient(normalizedCards) ?? '')
+const autoDetectedGradient = computed(() => detectDeckGradient(normalizedCards) ?? '')
+
+// reka-ui's SelectItem forbids an empty-string value, so "follow auto-detection"
+// is represented by this sentinel instead of ''
+const AUTO_GRADIENT = 'auto'
+const gradientOverride = ref(AUTO_GRADIENT)
+
+const gradient = computed(() =>
+  gradientOverride.value === AUTO_GRADIENT ? autoDetectedGradient.value : gradientOverride.value
+)
+
+const gradientSelectItems = computed(() => [
+  { label: `Auto (${autoDetectedGradient.value || 'non rilevato'})`, value: AUTO_GRADIENT },
+  ...GRADIENT_OPTIONS.map(g => ({ label: g, value: g }))
+])
 
 const previewStyles = computed(() => getDecklistStyles(gradient.value))
+
+// Mana symbols shown next to each gradient option, same icon set as blog's header
+function manaSequenceFor(value: string) {
+  const resolved = value === AUTO_GRADIENT ? autoDetectedGradient.value : value
+  return resolved ? getManaSequence(resolved) : ''
+}
+
+function labelFor(value: string) {
+  return gradientSelectItems.value.find(item => item.value === value)?.label ?? value
+}
 
 const block = computed(() => {
   return [
@@ -34,10 +63,8 @@ const block = computed(() => {
   ].join('\n')
 })
 
-const { copy, copied } = useClipboard()
-
 function copyBlock() {
-  copy(block.value)
+  emit('copy', block.value)
 }
 </script>
 
@@ -70,7 +97,7 @@ function copyBlock() {
     </template>
 
     <div class="space-y-4">
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <UFormField label="Nome mazzo">
           <UInput
             v-model="name"
@@ -79,20 +106,39 @@ function copyBlock() {
           />
         </UFormField>
 
-        <UFormField label="Player">
-          <UInput
-            v-model="player"
-            placeholder="Paolo Baroni"
-            class="w-full"
-          />
-        </UFormField>
-
-        <UFormField label="Placement">
+        <UFormField label="Piazzamento">
           <UInput
             v-model="placement"
             placeholder="Winner"
             class="w-full"
           />
+        </UFormField>
+
+        <UFormField label="Giocatore">
+          <UInput
+            v-model="player"
+            placeholder="Pietro Bragioto"
+            class="w-full"
+          />
+        </UFormField>
+
+        <UFormField label="Header gradient">
+          <USelect
+            v-model="gradientOverride"
+            :items="gradientSelectItems"
+            class="w-full"
+          >
+            <template #default="{ modelValue }">
+              <span class="flex items-center gap-1.5 min-w-0">
+                <ManaSymbol :sequence="manaSequenceFor(modelValue as string)" />
+                <span class="truncate">{{ labelFor(modelValue as string) }}</span>
+              </span>
+            </template>
+
+            <template #item-leading="{ item }">
+              <ManaSymbol :sequence="manaSequenceFor(item.value)" />
+            </template>
+          </USelect>
         </UFormField>
       </div>
 
@@ -113,12 +159,15 @@ function copyBlock() {
       >
         <div class="grid grid-cols-[1fr_auto] items-start gap-x-4 gap-y-2">
           <div class="flex flex-col gap-1">
-            <h2
-              class="text-xl font-semibold leading-tight m-0"
-              :class="previewStyles.textClasses.heading"
-            >
-              {{ name || 'Nome mazzo' }}
-            </h2>
+            <div class="flex items-center gap-2">
+              <h2
+                class="text-xl font-semibold leading-tight m-0"
+                :class="previewStyles.textClasses.heading"
+              >
+                {{ name || 'Nome mazzo' }}
+              </h2>
+              <ManaSymbol :sequence="getManaSequence(gradient)" />
+            </div>
             <p
               v-if="player"
               class="text-base font-semibold leading-tight m-0"

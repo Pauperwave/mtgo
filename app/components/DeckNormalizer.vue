@@ -2,7 +2,7 @@
 <script setup lang="ts">
 import { useClipboard } from '@vueuse/core'
 import type { CardSuggestion } from '~/types/suggestions'
-import type { NormalizedCard } from '~/types/deck'
+import type { NormalizedCard, ScryfallCard } from '~/types/deck'
 import MissingCardsCard from '~/components/deck-normalizer/MissingCardsCard.vue'
 
 // ============================================
@@ -259,10 +259,8 @@ const showEmptyState = computed(() =>
   && suggestions.suggestions.value.length === 0
 )
 
-function copyToClipboard() {
-  if (normalizedOutput.value) {
-    copy(normalizedOutput.value)
-  }
+function copyContentBlock(block: string) {
+  copy(block)
 }
 </script>
 
@@ -291,6 +289,14 @@ function copyToClipboard() {
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Left Column: Input -->
         <div class="space-y-4">
+          <InputCard
+            v-model="input"
+            :line-count="lineCount"
+            :is-loading="isLoading"
+            @normalize="handleNormalize"
+            @load-deck-meta="handleLoadDeckMeta"
+          />
+
           <ProgressChecklistCard
             :items="checklistItems"
             :completed-count="completedCount"
@@ -298,12 +304,9 @@ function copyToClipboard() {
             :is-loading="isLoading"
           />
 
-          <InputCard
-            v-model="input"
-            :line-count="lineCount"
-            :is-loading="isLoading"
-            @normalize="handleNormalize"
-            @load-deck-meta="handleLoadDeckMeta"
+          <PerformanceCard
+            v-if="performance"
+            :performance="performance"
           />
         </div>
 
@@ -329,11 +332,6 @@ function copyToClipboard() {
             :validation="validation"
           />
 
-          <PerformanceCard
-            v-if="performance"
-            :performance="performance"
-          />
-
           <MissingCardsCard
             v-if="missingCardsForOutput.length > 0"
             :cards="missingCardsFormatted"
@@ -347,7 +345,8 @@ function copyToClipboard() {
             @dismiss="handleRejectSuggestion"
           />
 
-          <OutputCard
+          <!-- Superseded by ContentBlockCard, kept for reference -->
+          <!-- <OutputCard
             v-if="normalizedOutput"
             :output="normalizedOutput"
             :copied="copied"
@@ -355,7 +354,7 @@ function copyToClipboard() {
             :pending-cards="pendingCardsForOutput"
             :missing-cards="missingCardsForOutput"
             @copy="copyToClipboard"
-          />
+          /> -->
 
           <ContentBlockCard
             v-if="normalizedOutput"
@@ -364,6 +363,8 @@ function copyToClipboard() {
             v-model:placement="deckPlacement"
             :output="normalizedOutput"
             :normalized-cards="normalizedCardsForOutput"
+            :copied="copied"
+            @copy="copyContentBlock"
           />
 
           <EmptyState v-if="showEmptyState" />

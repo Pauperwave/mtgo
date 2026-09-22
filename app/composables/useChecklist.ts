@@ -74,7 +74,7 @@ export function useChecklist(
     },
     {
       id: 'copy',
-      label: 'Clicca "Copia" per copiare l\'output normalizzato negli appunti',
+      label: 'Clicca "Copia" per copiare il blocco Nuxt Content negli appunti',
       completed: hasCopied,
       icon: computed(() => hasCopied.value ? 'i-lucide-circle-check' : 'i-lucide-circle'),
       color: computed(() => hasCopied.value ? 'text-success' : 'text-muted')

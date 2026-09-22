@@ -54,6 +54,47 @@ const DARK_PLACEMENT = new Set<string>([
   'bant', 'boros', 'colorless', 'jeskai', 'monowhite', 'naya', 'selesnya'
 ])
 
+// Color sequence (mana-font symbol order) per gradient, ported from
+// blog's ManaSymbol.vue combinationMap
+const GRADIENT_MANA_SEQUENCE: Record<string, string> = {
+  monowhite: 'w',
+  monoblue: 'u',
+  monoblack: 'b',
+  monored: 'r',
+  monogreen: 'g',
+  colorless: 'c',
+
+  azorius: 'wu',
+  dimir: 'ub',
+  rakdos: 'br',
+  gruul: 'rg',
+  selesnya: 'gw',
+
+  orzhov: 'wb',
+  golgari: 'bg',
+  simic: 'gu',
+  izzet: 'ur',
+  boros: 'rw',
+
+  esper: 'wub',
+  grixis: 'ubr',
+  jund: 'brg',
+  naya: 'rgw',
+  bant: 'gwu',
+
+  mardu: 'wbr',
+  temur: 'urg',
+  sultai: 'bgu',
+  jeskai: 'rwu',
+  abzan: 'wbg'
+}
+
+export const GRADIENT_OPTIONS = Object.keys(GRADIENT_CLASSES)
+
+export function getManaSequence(headerGradient: string): string {
+  return GRADIENT_MANA_SEQUENCE[headerGradient] ?? ''
+}
+
 export function getDecklistStyles(headerGradient: string) {
   const headerClass = GRADIENT_CLASSES[headerGradient]
 

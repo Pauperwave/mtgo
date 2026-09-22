@@ -17,6 +17,7 @@
     "@iconify-json/simple-icons": "^1.2.63",
     "@nuxt/ui": "^4.3.0",
     "better-sqlite3": "^12.6.2",
+    "mana-font": "^1.18.0",
     "nuxt": "^4.2.2"
   },
   "devDependencies": {
