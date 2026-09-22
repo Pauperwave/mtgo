@@ -32,7 +32,9 @@ const groupedSuggestions = computed(() => {
 
 // Get the first (highest confidence) suggestion from each group
 const firstSuggestions = computed(() => {
-  return groupedSuggestions.value.map(([_, suggestions]) => suggestions[0])
+  return groupedSuggestions.value
+    .map(([_, suggestions]) => suggestions[0])
+    .filter((suggestion): suggestion is CardSuggestion => suggestion !== undefined)
 })
 
 function getConfidenceColor(confidence: CardSuggestion['confidence']) {

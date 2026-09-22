@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import type { PerformanceStats } from '~/shared/types'
-
 interface Props {
   performance: PerformanceStats
 }
