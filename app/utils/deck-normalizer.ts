@@ -120,11 +120,13 @@ export function normalizeDeckWithIndex(
     // PRIORITY 1: Check if this card has a pending suggestion (user hasn't accepted/rejected yet)
     // Use the ORIGINAL card name (before any mapping) to match against suggestions
     const pendingSuggestion = pendingSuggestions.get(card.name)
-    
+
     if (pendingSuggestion) {
       // Card has a pending suggestion - mark as pending even if it's in the index
       const section = sectionFromTypeLine(pendingSuggestion.type_line, card.isSideboard)
       const landCategory = section === 'Land' ? categorizeLand(pendingSuggestion) : undefined
+
+      console.debug(`[normalize] PRIORITY1 "${card.name}" → suggested="${pendingSuggestion.name}" type_line="${pendingSuggestion.type_line}" → section=${section}`)
 
       normalized.push({
         ...card,
@@ -140,13 +142,14 @@ export function normalizeDeckWithIndex(
 
     // PRIORITY 2: Try name mapping (input → canonical name from server)
     const mappedName = nameMapping[card.name]
-    
+
     // Extract front face for DFC lookups
     const frontFace = getFrontFace(mappedName || card.name)
     const scryfall = scryfallIndex.get(frontFace)
 
     if (!scryfall) {
       // No match in index and no pending suggestion - mark as missing
+      console.debug(`[normalize] MISSING "${card.name}" mappedName="${mappedName}" frontFace="${frontFace}"`)
       normalized.push({
         ...card,
         name: card.name, // Keep original name
@@ -163,6 +166,8 @@ export function normalizeDeckWithIndex(
       scryfall.type_line,
       card.isSideboard
     )
+
+    console.debug(`[normalize] PRIORITY2 "${card.name}" mappedName="${mappedName}" → index="${scryfall.name}" type_line="${scryfall.type_line}" → section=${section}`)
 
     const landCategory = section === 'Land'
       ? categorizeLand(scryfall)

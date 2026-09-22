@@ -43,14 +43,14 @@ export function useDeckNormalizer() {
       // Track how many were auto-applied
       autoAppliedCount.value = result.suggestionGroup.autoApply.length
 
-      // Build index with all cards:
-      // - Exact matches from Scryfall
-      // - Auto-applied suggestions (high confidence)
-      // - Manual suggestions (for user to review)
+      // Build index with all cards.
+      // IMPORTANT: exactMatches must come LAST so they always win over fuzzy suggestions.
+      // requireConfirmation candidates may share names with exact matches; processing them
+      // first prevents a fuzzy suggestion from silently overwriting correct resolved data.
       const allCards = [
-        ...result.exactMatches,
+        ...result.suggestionGroup.requireConfirmation.map(s => s.suggestedCard),
         ...result.suggestionGroup.autoApply.map(s => s.suggestedCard),
-        ...result.suggestionGroup.requireConfirmation.map(s => s.suggestedCard)
+        ...result.exactMatches, // exactMatches last → always wins
       ]
 
       scryfallIndex.value = createScryfallIndex(allCards)
