@@ -11,10 +11,14 @@ import MissingCardsCard from '~/components/deck-normalizer/MissingCardsCard.vue'
 
 const input = ref('')
 const normalizedOutput = ref('')
+const normalizedCardsForOutput = ref<NormalizedCard[]>([]) // All normalized cards, used for gradient detection
 const pendingCardsForOutput = ref<NormalizedCard[]>([]) // Cards with pending suggestions in output
 const missingCardsForOutput = ref<NormalizedCard[]>([]) // Cards that couldn't be found
 const validation = ref<ValidationResult | null>(null)
 const isPartialOutput = ref(false) // Track if output contains pending/missing cards
+const deckName = ref('')
+const deckPlayer = ref('')
+const deckPlacement = ref('Winner')
 
 const {
   isLoading,
@@ -48,6 +52,12 @@ const suggestions = useSuggestions(input, () => {
 const missingCardsFormatted = computed(() =>
   missingCardsForOutput.value.map(card => `${card.quantity}x ${card.name}`)
 )
+
+function handleLoadDeckMeta(meta: { name: string, player: string, placement: string }) {
+  deckName.value = meta.name
+  deckPlayer.value = meta.player
+  deckPlacement.value = meta.placement
+}
 
 // ============================================
 // Normalization
@@ -141,6 +151,7 @@ function handleFinalizeDeck() {
 
     // Update state with structured data
     normalizedOutput.value = result.output
+    normalizedCardsForOutput.value = result.normalizedCards
     pendingCardsForOutput.value = result.pendingCards
     missingCardsForOutput.value = result.missingCards
 
@@ -219,6 +230,7 @@ const { checklistItems, completedCount, totalCount } = useChecklist(
 watch(input, (newValue) => {
   if (!newValue.trim()) {
     normalizedOutput.value = ''
+    normalizedCardsForOutput.value = []
     validation.value = null
     suggestions.clearSuggestions()
     resetNormalizer()
@@ -291,6 +303,7 @@ function copyToClipboard() {
             :line-count="lineCount"
             :is-loading="isLoading"
             @normalize="handleNormalize"
+            @load-deck-meta="handleLoadDeckMeta"
           />
         </div>
 
@@ -342,6 +355,15 @@ function copyToClipboard() {
             :pending-cards="pendingCardsForOutput"
             :missing-cards="missingCardsForOutput"
             @copy="copyToClipboard"
+          />
+
+          <ContentBlockCard
+            v-if="normalizedOutput"
+            v-model:name="deckName"
+            v-model:player="deckPlayer"
+            v-model:placement="deckPlacement"
+            :output="normalizedOutput"
+            :normalized-cards="normalizedCardsForOutput"
           />
 
           <EmptyState v-if="showEmptyState" />

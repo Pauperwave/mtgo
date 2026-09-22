@@ -5,9 +5,16 @@ interface Props {
   isLoading: boolean
 }
 
+interface DeckMeta {
+  name: string
+  player: string
+  placement: string
+}
+
 interface Emits {
   (e: 'update:modelValue', value: string): void
   (e: 'normalize'): void
+  (e: 'load-deck-meta', meta: DeckMeta): void
 }
 
 const props = defineProps<Props>()
@@ -18,8 +25,12 @@ const localValue = computed({
   set: value => emit('update:modelValue', value)
 })
 
-function handleLoadDeck(deckText: string) {
+function handleLoadDeck(deckText: string, meta?: DeckMeta) {
   emit('update:modelValue', deckText)
+
+  if (meta) {
+    emit('load-deck-meta', meta)
+  }
 }
 </script>
 

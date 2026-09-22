@@ -4,11 +4,23 @@
  * Provides quick-fill buttons for testing deck normalization
  */
 
+interface DeckMeta {
+  name: string
+  player: string
+  placement: string
+}
+
 interface Emits {
-  (e: 'load-deck', deckText: string): void
+  (e: 'load-deck', deckText: string, meta?: DeckMeta): void
 }
 
 const emit = defineEmits<Emits>()
+
+const WALLS_COMBO_META: DeckMeta = {
+  name: 'Spy',
+  player: 'Roberto De Vivo',
+  placement: 'Winner'
+}
 
 // Test deck with fuzzy matches (typos)
 const FUZZY_MATCH_DECK = `4 Quirion Ran
@@ -67,9 +79,9 @@ Sideboard
       variant="outline"
       block
       class="flex-1 cursor-pointer"
-      @click="emit('load-deck', WALLS_COMBO_DECK)"
+      @click="emit('load-deck', WALLS_COMBO_DECK, WALLS_COMBO_META)"
     >
-      Test: Walls Combo
+      Test: Spy
     </UButton>
   </div>
 </template>

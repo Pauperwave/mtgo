@@ -86,7 +86,7 @@ const styledLines = computed(() => {
 <template>
   <CollapsibleCard
     border-class="border-success/20"
-    :default-open="true"
+    :default-open="false"
   >
     <template #header-icon>
       <UIcon
